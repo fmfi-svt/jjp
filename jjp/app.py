@@ -8,8 +8,8 @@ from werkzeug.wrappers import Request, Response
 from werkzeug.wsgi import SharedDataMiddleware
 from sqlalchemy.orm import sessionmaker
 
-from . import front, models, serve
-site_modules = [front, models, serve]
+from . import front, getdiff, models, serve
+site_modules = [front, getdiff, models, serve]
 
 class JjpApp(object):
     def __init__(self, settings):
