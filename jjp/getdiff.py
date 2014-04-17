@@ -1,11 +1,10 @@
 
 import difflib
 import re
-import subprocess as SP
 from werkzeug.exceptions import BadRequest
 from werkzeug.routing import Rule
 from werkzeug.wrappers import Response
-from .utils import run_git, json_response
+from .utils import run_git, git_cat_content, json_response
 from . import intra_region_diff
 
 
@@ -18,17 +17,6 @@ def diff_plain(request, a, b):
     # TODO: process common errors
 
     return Response(patch)
-
-
-def get_blob_content(checker, hash):
-    if hash == '0' * 40:
-        return ''
-    checker.stdin.write(hash + '\n')
-    result = checker.stdout.readline()
-    if result.endswith('missing\n'):
-        raise ValueError("hash {} does not exist".format(hash))
-    _, type, size = result.split()
-    return checker.stdout.read(int(size) + 1)[:-1]
 
 
 def normalize_ir(lines, line_blocks):
@@ -89,27 +77,26 @@ def diff_json(request, a, b):
 
     rawdiff = run_git(request, 'git', 'diff-tree', '-r', a, b)
 
-    git_dir = request.app.settings.git_dir
-    checker = SP.Popen(['git', 'cat-file', '--batch'],
-                       stdin=SP.PIPE, stdout=SP.PIPE, cwd=git_dir)
-
     for line in rawdiff.split('\n'):
         if not line: continue
         if line[0:1] != ':':
             raise ValueError("git diff-tree has unexpected output")
-        status, _, filename = line[1:].partition('\t')
-        srcmode, dstmode, srcblob, dstblob, status = status.split(' ')
-        srccontent = get_blob_content(checker, srcblob)
-        dstcontent = get_blob_content(checker, dstblob)
-        # TODO: charset conversion
-        # TODO: find both old and new filename for moves and renames
-        diffdata = get_file_diff(srccontent, dstcontent)
-        result.append([filename, srcmode, dstmode, status, diffdata])
 
-    checker.stdin.close()
-    checker.wait()
-    if checker.returncode != 0:
-        raise OSError("git cat-file --batch ended unexpectedly")
+        status, _, dstfilename = line[1:].partition('\t')
+        srcmode, dstmode, srcblob, dstblob, status = status.split(' ')
+
+        if status[0:1] in ('C', 'R'):
+            srcfilename, _, dstfilename = dstfilename.partition('\t')
+        else:
+            srcfilename = None
+
+        srccontent = '' if status == 'A' else git_cat_content(request, srcblob)
+        dstcontent = '' if status == 'D' else git_cat_content(request, dstblob)
+        # TODO: charset conversion
+
+        diffdata = get_file_diff(srccontent, dstcontent)
+        result.append([srcfilename, dstfilename, srcmode, dstmode,
+                       status, diffdata])
 
     return json_response(result)
 
