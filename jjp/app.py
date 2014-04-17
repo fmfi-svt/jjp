@@ -1,12 +1,11 @@
 
 import os
 import sys
-import json
 from werkzeug.exceptions import HTTPException
 from werkzeug.routing import Map
-from werkzeug.wrappers import Request, Response
+from werkzeug.wrappers import Request
 from werkzeug.wsgi import SharedDataMiddleware
-from sqlalchemy.orm import sessionmaker
+from .dbhelper import DbHelper
 
 from . import front, getdiff, models, serve
 site_modules = [front, getdiff, models, serve]
@@ -27,7 +26,6 @@ class JjpApp(object):
                     self.url_map.add(rulefactory)
 
         self.db_engine = settings.db_connect()
-        self.DbSession = sessionmaker(bind=self.db_engine)
 
     def run_help(self, *args):
         print 'usage:'
@@ -56,13 +54,12 @@ class JjpApp(object):
         request.max_content_length = 16 * 1024 * 1024
         request.max_form_memory_size = 2 * 1024 * 1024
 
-        request.db = self.DbSession()
-
         request.url_adapter = self.url_map.bind_to_environ(request.environ)
 
-        response = self.dispatch_request(request)
-
-        request.db.close()
+        with self.db_engine.begin() as conn:
+            request.db_conn = conn
+            request.db = DbHelper(conn)
+            response = self.dispatch_request(request)
 
         return response
 

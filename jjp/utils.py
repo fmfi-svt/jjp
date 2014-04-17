@@ -1,6 +1,7 @@
 
 import json
 import subprocess as SP
+from werkzeug.exceptions import BadRequest
 from werkzeug.wrappers import Response
 
 
@@ -17,3 +18,17 @@ def json_response(json_object):
 
 def get_json_request(request):
     return json.loads(request.get_data())
+    # TODO: perhaps wrap dicts to throw BadRequestKeyError.
+
+
+# Helper functions for input data validation.
+def _need(type):
+    def fn(value):
+        if not isinstance(value, type): raise BadRequest()
+        return value
+    return fn
+needbool = _need(bool)
+needdict = _need(dict)
+needint = _need((int, long))
+needlist = _need(list)
+needstr = _need(unicode)
