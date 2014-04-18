@@ -3,7 +3,7 @@ from sqlalchemy.sql import and_
 
 
 def _where(table, criteria):
-    return and_(getattr(table.c, key) == criteria[key] for key in criteria)
+    return and_(*(getattr(table.c, key) == criteria[key] for key in criteria))
 
 
 class DbHelper(object):
@@ -22,7 +22,9 @@ class DbHelper(object):
         return self.execute(table.select(_where(table, criteria)))
 
     def insert(self, table, **values):
-        return self.execute(table.insert(values)).inserted_primary_key
+        result = self.execute(table.insert(values))
+        key = result.inserted_primary_key
+        return key[0] if len(key) == 1 else key
 
     def update(self, table, criteria, **values):
         return self.execute(table.update(_where(table, criteria), values))

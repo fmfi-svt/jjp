@@ -7,8 +7,8 @@ from werkzeug.wrappers import Request
 from werkzeug.wsgi import SharedDataMiddleware
 from .dbhelper import DbHelper
 
-from . import front, getdiff, models, serve
-site_modules = [front, getdiff, models, serve]
+from . import front, getdiff, getissue, models, serve
+site_modules = [front, getdiff, getissue, models, serve]
 
 class JjpApp(object):
     def __init__(self, settings):
