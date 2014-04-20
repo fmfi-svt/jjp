@@ -21,8 +21,11 @@ def login(request):
 
 
 def logout(request):
-    return redirect((request.app.settings.cosign_logout_prefix or '') +
-                    request.url_root)
+    response = redirect((request.app.settings.cosign_logout_prefix or '') +
+                        request.url_root)
+    if 'COSIGN_SERVICE' in request.environ:
+        response.delete_cookie(request.environ['COSIGN_SERVICE'])
+    return response
 
 
 dev_login_page = '''
