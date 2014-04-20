@@ -131,14 +131,83 @@ JJP.renderIssue = function () {
     }
   });
 
-  $('#jjp').append($('<div>').addClass('difflist').append($('<div/>').addClass('loading').text(t("Loading..."))));
+  $('#jjp').append($('<div>').addClass('difflist')
+    .append($('<div/>').addClass('loading').text(t("Loading..."))));
 
-  // TODO: WIP.
+  // TODO: Global threads.
+}
+
+
+JJP.renderDiffContent = function (diffdata) {
+  var $table = $('<table/>');
+  var ln = { 'old': 0, 'new': 0 };
+
+  function processLine($tr, tag, line) {
+    if (line === undefined) {
+      $tr.append($('<td/>').addClass('ln blank'), $('<td/>').addClass('c blank'));
+      return;
+    }
+    ln[tag]++;
+    var ir = $.isArray(line);
+    $tr.append($('<td/>').addClass('ln ' + tag + (ir ? '' : ' ch')).text('\u00a0' + ln[tag] + '\u00a0'));
+    var $td = $('<td/>').addClass('c ' + tag + (ir ? '' : ' ch')).appendTo($tr);
+    if (ir) {
+      for (var i = 0; i < line.length; i++) {
+        $td.append(i % 2 ? document.createTextNode(line[i]) : $('<span/>').addClass('ch').text(line[i]));
+      }
+    } else {
+      $td.text(line);
+    }
+  }
+
+  for (var ci = 0; ci < diffdata.length; ci++) {
+    var chunk = diffdata[ci];
+    var tag = chunk[0], oldLines = chunk[1], newLines = chunk[2];
+    if (tag == 'equal') {
+      for (var i = 0; i < oldLines.length; i++) {
+        ln['old']++;
+        ln['new']++;
+        $('<tr/>').appendTo($table).append(
+          $('<td/>').addClass('ln').text('\u00a0' + ln['old'] + '\u00a0'),
+          $('<td/>').addClass('c').text(oldLines[i]),
+          $('<td/>').addClass('ln').text('\u00a0' + ln['new'] + '\u00a0'),
+          $('<td/>').addClass('c').text(oldLines[i])
+        );
+      }
+      // TODO: Context and hidden lines.
+    } else {
+      for (var i = 0; i < oldLines.length || i < newLines.length; i++) {
+        var $tr = $('<tr/>').appendTo($table);
+        processLine($tr, 'old', oldLines[i]);
+        processLine($tr, 'new', newLines[i]);
+      }
+    }
+  }
+  return $table;
 }
 
 
 JJP.renderDiff = function () {
-  // TODO: WIP.
+  var $difflist = $('.difflist');
+  $difflist.empty();
+  for (var i = 0; i < JJP.currentDiff.length; i++) {
+    var row = JJP.currentDiff[i];
+    var srcfilename = row[0], dstfilename = row[1], srcmode = row[2], dstmode = row[3], status = row[4], diffdata = row[5];
+    var text = (srcfilename ? srcfilename + " \u2192 " : "") + dstfilename;
+    $difflist.append($("<div/>").addClass('file').click(clickFile).append(
+      $('<code/>').addClass("status").text(status.substring(0, 1)),
+      srcfilename ? $("<code/>").addClass("name").text(srcfilename) : "",
+      srcfilename ? $("<span/>").text(" \u2192 ") : "",
+      $("<code/>").addClass("name").text(dstfilename),
+      srcmode != dstmode && status != "A" && status != "D" ?
+        $("<code/>").addClass("status").text(srcmode + " \u2192 " + dstmode) : ""
+    ));
+    $difflist.append($("<div/>").addClass('diff').hide().append(JJP.renderDiffContent(diffdata)));
+  }
+
+  function clickFile() {
+    $(this).closest('.file').next().toggle();
+  }
 }
 
 
@@ -187,6 +256,7 @@ JJP.goIssue = function (issueId, hashLeft, hashRight) {
     JJP.currentLeft = hashLeft;
     JJP.currentRight = hashRight;
 
+    // TODO: Only render issue if changed. (Change checked radios if needed.)
     JJP.renderIssue();
 
     $.get(hashLeft + "." + hashRight + ".json", processDiff);

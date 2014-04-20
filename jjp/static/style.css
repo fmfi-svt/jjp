@@ -18,7 +18,7 @@ pre {
   padding: 0;
 }
 
-pre, code {
+pre, code, .diff {
   font: 9pt monospace;
 }
 
@@ -119,3 +119,49 @@ pre, code {
 .difflist .loading {
   padding: 0.7em;
 }
+
+.difflist .file {
+  cursor: pointer;
+  background: #FFA;
+  padding: 0.2em 0.7em;
+  border-bottom: solid #888 1px;
+}
+
+.difflist .file code {
+  margin-right: 1em;
+}
+
+.difflist .file .status {
+  background: #FFF;
+  padding: 1px;
+}
+
+.diff table td {
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
+  border: solid #CCC;
+  border-width: 0px 1px;
+  vertical-align: top;
+}
+
+.diff table {
+  margin: 1em;
+  border: solid #CCC 1px;
+  border-collapse: collapse;
+}
+
+.diff .ln {
+  text-align: right;
+}
+.diff .c {
+  width: 80ex;  /* TODO: configurable size */
+}
+
+.diff .old { background: #FEE; }
+.diff .new { background: #DFD; }
+.diff .old.ch, .diff .old .ch { background: #FAA; }
+.diff .new.ch, .diff .new .ch { background: #9F9; }
+.diff .blank { background: #EEE; }
