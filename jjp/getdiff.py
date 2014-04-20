@@ -92,7 +92,8 @@ def diff_json(request, a, b):
 
         srccontent = '' if status == 'A' else git_cat_content(request, srcblob)
         dstcontent = '' if status == 'D' else git_cat_content(request, dstblob)
-        # TODO: charset conversion
+        srccontent = srccontent.decode('utf8', 'replace')
+        dstcontent = dstcontent.decode('utf8', 'replace')
 
         diffdata = get_file_diff(srccontent, dstcontent)
         result.append([srcfilename, dstfilename, srcmode, dstmode,
