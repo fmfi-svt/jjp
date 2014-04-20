@@ -57,7 +57,37 @@ JJP.renderTop = function () {
 
 
 JJP.reply = function () {
-  // TODO: WIP.
+  var issueId = JJP.currentIssue.issue.id;
+
+  var data = { issue_id: issueId, comments: [] };
+
+  var drafts = JJP.currentIssue.drafts;
+  for (var id in drafts) {
+    var comment = $.extend({}, drafts[id]);
+    if (id < 0) delete comment['id'];
+    data.comments.push(comment);
+  }
+
+  if (!data.comments.length) {
+    alert("Press Reply after you write your comments.");
+    return;
+  }
+
+  $.ajax({
+    type: 'POST',
+    url: 'post/message',
+    data: JSON.stringify(data),
+    contentType: 'application/json',
+    dataType: 'json',
+    success: function () {
+      localStorage.removeItem('jjpdraft' + issueId);
+      location.reload();
+    },
+    error: function () {
+      alert("Error!");
+      // TODO: process errors better.
+    }
+  });
 }
 
 
@@ -67,8 +97,10 @@ JJP.renderIssue = function () {
   $(".top").append($('<h2/>').append($('<a />')
     .attr('href', '#' + issue.id)
     .text('#' + issue.id + ': ' + issue.title)));
-  $(".top").append($("<div/>").addClass("reply").append(
-    $("<button />").text(t("Reply")).click(JJP.reply)));
+  if (JJP.username) {
+    $(".top").append($("<div/>").addClass("reply").append(
+      $("<button />").text(t("Reply")).click(JJP.reply)));
+  }
 
   var rows = {};
   var $commits = $("<table/>").appendTo($("<form/>").addClass("commits").appendTo("#jjp"));
@@ -148,42 +180,87 @@ JJP.renderIssue = function () {
 
 
 JJP.renderThread = function (thread) {
+  var fresh = thread.fresh;
+  delete thread.fresh;
+
   // TODO: WIP.
   var $thread = $('<div/>').addClass('thread').data('thread', thread);
-  if (thread.resolved) $thread.addClass('resolved');
   $thread.text(JSON.stringify(thread));
 
+  var originalResolved = thread.id >= 0 ? thread.resolved : false;
+  var drafts = JJP.currentIssue.drafts;
+  var draft = drafts[thread.id] || (thread.id >= 0 ? { id: thread.id, resolved: originalResolved, body: '' } : thread);
+
+  if (originalResolved) $thread.addClass('resolved');
+
+  var $textarea, $checkbox;
+
   function autosave() {
-    var drafts = JJP.currentIssue.drafts;
-    var content = $thread.find('textarea').val();
-    var toggleResolved = $thread.find(':checkbox').is(':checked');
+    var content = $textarea.val();
+    var toggleResolved = $checkbox.is(':checked');
     if (content || toggleResolved) {
-      if (!drafts[thread.id]) {
-        drafts[thread.id] = (thread.id >= 0 ? { id: thread.id } : thread);
-      }
-      drafts[thread.id].draft = content;
-      if (toggleResolved) {
-        drafts[thread.id].newResolved = !thread.resolved;
-      } else {
-        delete drafts[thread.id].newResolved;
-      }
+      if (!drafts[thread.id]) drafts[thread.id] = draft;
+      draft.body = content;
+      draft.resolved = (toggleResolved ? !originalResolved : originalResolved);
     } else {
       delete drafts[thread.id];
     }
     localStorage.setItem("jjpdraft" + JJP.currentIssue.issue.id, JSON.stringify(drafts));
   }
 
+  $thread.append($('<div/>').addClass('actions').append(
+    JJP.fakelink().text(t('Reply')).click(function () {
+      $thread.find('.actions').hide();
+      $thread.find('.reply').show();
+      $textarea.focus();
+      autosave();
+    }),
+    '<span>&nbsp;&nbsp;&nbsp;</span>',
+    JJP.fakelink().text(t('Done')).click(function () {
+      $thread.find('.actions').hide();
+      $thread.find('.reply').show();
+      $textarea.val(t('Done.'));
+      $checkbox[0].checked = !originalResolved;
+      autosave();
+    }),
+    '<span>&nbsp;&nbsp;&nbsp;</span>',
+    JJP.fakelink().text(t('Ack')).click(function () {
+      $thread.find('.actions').hide();
+      $thread.find('.reply').show();
+      $textarea.val(t('Acknowledged.'));
+      autosave();
+    })
+  ));
+
   var cid = 'cid' + (''+Math.random()).replace(/\D/g, '');
-  $thread.append(
-    $('<br/>'),
-    $('<textarea/>').attr('rows', 5).val(thread.draft || '').on('input change', autosave),
-    $('<br/>'),
-    $('<input type="checkbox"/>').attr('id', cid)
-      .attr('checked', Boolean(thread.newResolved !== undefined && thread.newResolved != thread.resolved))
-      .on('click keypress change', autosave),
-    $('<label/>').attr('for', cid).text(
-      thread.resolved ? t(' Mark as resolved (done)') : t(' Mark as unresolved (needs work)'))
-  );
+  $thread.append($('<div/>').addClass('reply').hide().append(
+    $('<div/>').append($textarea = $('<textarea/>').attr('rows', 5).val(draft.body).on('input change', autosave)),
+    $('<div/>').append(
+      $checkbox = $('<input type="checkbox"/>').attr('id', cid)
+        .attr('checked', Boolean(draft.resolved != originalResolved))
+        .on('click keypress change', autosave),
+      $('<label/>').attr('for', cid).text(
+        !originalResolved ? t(' Mark as resolved (done)') : t(' Mark as unresolved (needs work)'))
+    ),
+    $('<div/>').append(
+      JJP.fakelink().text(t('Cancel')).click(function () {
+        $thread.find('.actions').show();
+        $thread.find('.reply').hide();
+        $textarea.val('');
+        $checkbox[0].checked = false;
+        autosave();
+        if (thread.id < 0) $thread.remove();
+      })
+    )
+  ));
+
+  if (fresh || draft.body || draft.resolved != originalResolved) {
+    $thread.find('.actions').hide();
+    $thread.find('.reply').show();
+  }
+  if (fresh) {
+    setTimeout(function () { $textarea.focus(); }, 1);
+  }
 
   return $thread;
 }
@@ -200,7 +277,7 @@ JJP.createGlobalThread = function () {
     alert(t("Please log in to leave comments."));
     return;
   }
-  var thread = { id: JJP.makeDraftId(), draft: "", resolved: false };
+  var thread = { id: JJP.makeDraftId(), body: "", resolved: false, fresh: true };
   $('.globalthreads').append(JJP.renderThread(thread));
 }
 
@@ -218,8 +295,9 @@ JJP.createInlineThread = function ($tr, side) {
     diff_side: side,
     file: me[0],
     line: side ? me[2] : me[1],
-    draft: "",
-    resolved: false
+    body: "",
+    resolved: false,
+    fresh: true
   };
   $tr.find('td').eq(side).append(JJP.renderThread(thread));
 }
@@ -231,11 +309,12 @@ JJP.renderCommentRow = function (filename, leftLine, rightLine) {
   var rloc = filename + ":" + rightLine + ":1";
   var lthreads = JJP.currentIssue.threadsByLocation[lloc];
   var rthreads = JJP.currentIssue.threadsByLocation[rloc];
+  if (lthreads || rthreads) console.log(filename, leftLine, rightLine);
   var $left = $.map(lthreads || [], JJP.renderThread);
   var $right = $.map(rthreads || [], JJP.renderThread);
   // TODO: Find out if this is faster: if ($left.length || $right.length) {
-  $tr.append($('<td/>').attr('colspan', '2').append(lthreads),
-             $('<td/>').attr('colspan', '2').append(lthreads));
+  $tr.append($('<td/>').attr('colspan', '2').append($left),
+             $('<td/>').attr('colspan', '2').append($right));
   return $tr;
 }
 
@@ -381,7 +460,7 @@ JJP.makeIndexes = function () {
 
   ci.messagesById = {};
   for (var i = 0; i < ci.messages.length; i++) {
-    var message = ci.message[i];
+    var message = ci.messages[i];
     message.comments = [];
     ci.messagesById[message.id] = message;
   }
@@ -402,10 +481,7 @@ JJP.makeIndexes = function () {
   var allThreads = ci.threads.slice();
   ci.drafts = JSON.parse(localStorage.getItem("jjpdraft" + ci.issue.id) || "{}");
   for (var id in ci.drafts) {
-    if (id >= 0) {
-      ci.threadsById[id].draft = ci.drafts[id].draft;
-      ci.threadsById[id].newResolved = ci.drafts[id].newResolved;
-    } else {
+    if (id < 0) {
       allThreads.push(ci.drafts[id]);
     }
   }
