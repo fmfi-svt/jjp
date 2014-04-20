@@ -205,7 +205,8 @@ JJP.renderThread = function (thread) {
     for (var i = 0; i < thread.comments.length; i++) {
       var comment = thread.comments[i];
       var message = JJP.currentIssue.messagesById[comment.message_id];
-      $comments.append($('<dt/>').text(message.username + ' (' + message.timestamp + ')'));
+      var time = (new Date(message.timestamp * 1000)).toLocaleString()
+      $comments.append($('<dt/>').text(message.username + ' (' + time + ')'));
       $comments.append($('<dd/>').text(comment.body));
     }
   }

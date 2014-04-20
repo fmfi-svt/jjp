@@ -36,7 +36,7 @@ Messages = Table('messages', metadata,
     Column('id', Integer, nullable=False, primary_key=True),
     Column('issue_id', Integer, ForeignKey('issues.id'), nullable=False, index=True),
     Column('author_id', Integer, ForeignKey('users.id'), nullable=False),
-    Column('timestamp', Integer, nullable=False, index=True, default=func.now()),
+    Column('timestamp', Integer, nullable=False, index=True),
 )
 
 Threads = Table('threads', metadata,

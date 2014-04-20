@@ -1,4 +1,5 @@
 
+import time
 from werkzeug.exceptions import BadRequest, Forbidden
 from werkzeug.routing import Rule
 from .models import Users, Issues, Messages, Threads, Comments
@@ -16,7 +17,8 @@ def post_message(request):
     issue_id = needint(data['issue_id'])
     db.get_one(Issues, id=issue_id)   # verify it exists
     author_id = db.get_one(Users, username=request.remote_user).id
-    message_id = db.insert(Messages, issue_id=issue_id, author_id=author_id)
+    message_id = db.insert(Messages,
+        issue_id=issue_id, author_id=author_id, timestamp=int(time.time()))
 
     for comment in needlist(data['comments']):
         if 'id' in comment:
