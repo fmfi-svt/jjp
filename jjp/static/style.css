@@ -4,8 +4,34 @@ body {
   margin: 3.5em 0.7em 0.7em 0.7em;
 }
 
-a {
-  color: blue;
+a, .fakelink {
+  color: #00A;
+  cursor: pointer;
+  text-decoration: underline;
+}
+a:hover, .fakelink:hover {
+  color: #00E;
+}
+
+pre {
+  margin: 0;
+  padding: 0;
+}
+
+pre, code {
+  font: 9pt monospace;
+}
+
+.clearfix:before,
+.clearfix:after {
+  content: "";
+  display: table;
+}
+.clearfix:after {
+  clear: both;
+}
+.clearfix {
+  zoom: 1; /* IE 6/7 */
 }
 
 /* TOP ************************************************************************/
@@ -40,7 +66,7 @@ a {
   text-decoration: none;
 }
 .top h2 a:hover {
-  color: #00A;
+  color: #007;
 }
 
 .top .reply {
@@ -51,4 +77,45 @@ a {
 .top .login {
   float: right;
   padding: .5em;
+}
+
+/* COMMITS ********************************************************************/
+
+.commits table {
+  width: 100%;
+}
+
+.commits tr, .commits td {
+  margin: 0.1em;
+  padding: 0;
+  vertical-align: top;
+}
+
+.commits td.narrow {
+  width: 1%;
+}
+
+.commits .label {
+  background: green;
+  color: white;
+  padding: 1px;
+  border-radius: 3px;
+}
+
+.commits pre {
+  white-space: pre-wrap;
+}
+.commits pre.details {
+  background: #CCC;
+}
+
+/* DIFF ***********************************************************************/
+
+.difflist {
+  margin: 0.7em -0.7em;
+  border-top: solid #888 1px;
+}
+
+.difflist .loading {
+  padding: 0.7em;
 }
