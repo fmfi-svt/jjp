@@ -188,7 +188,17 @@ pre, code {
   margin: 0.7em;
   padding: 0.5em;
   box-shadow: 0 0 0.5em #888;
-  background: #FFA;
+  background: #FF8;
   word-wrap: break-word;
   max-width: 70ex;   /* TODO */
+}
+.thread.resolved {
+  background: #FFC;
+}
+
+.thread textarea {
+  box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
 }

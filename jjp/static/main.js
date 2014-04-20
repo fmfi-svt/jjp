@@ -150,7 +150,41 @@ JJP.renderIssue = function () {
 JJP.renderThread = function (thread) {
   // TODO: WIP.
   var $thread = $('<div/>').addClass('thread').data('thread', thread);
+  if (thread.resolved) $thread.addClass('resolved');
   $thread.text(JSON.stringify(thread));
+
+  function autosave() {
+    var drafts = JJP.currentIssue.drafts;
+    var content = $thread.find('textarea').val();
+    var toggleResolved = $thread.find(':checkbox').is(':checked');
+    if (content || toggleResolved) {
+      if (!drafts[thread.id]) {
+        drafts[thread.id] = (thread.id >= 0 ? { id: thread.id } : thread);
+      }
+      drafts[thread.id].draft = content;
+      if (toggleResolved) {
+        drafts[thread.id].newResolved = !thread.resolved;
+      } else {
+        delete drafts[thread.id].newResolved;
+      }
+    } else {
+      delete drafts[thread.id];
+    }
+    localStorage.setItem("jjpdraft" + JJP.currentIssue.issue.id, JSON.stringify(drafts));
+  }
+
+  var cid = 'cid' + (''+Math.random()).replace(/\D/g, '');
+  $thread.append(
+    $('<br/>'),
+    $('<textarea/>').attr('rows', 5).val(thread.draft || '').on('input change', autosave),
+    $('<br/>'),
+    $('<input type="checkbox"/>').attr('id', cid)
+      .attr('checked', Boolean(thread.newResolved !== undefined && thread.newResolved != thread.resolved))
+      .on('click keypress change', autosave),
+    $('<label/>').attr('for', cid).text(
+      thread.resolved ? t(' Mark as resolved (done)') : t(' Mark as unresolved (needs work)'))
+  );
+
   return $thread;
 }
 
@@ -369,10 +403,10 @@ JJP.makeIndexes = function () {
   ci.drafts = JSON.parse(localStorage.getItem("jjpdraft" + ci.issue.id) || "{}");
   for (var id in ci.drafts) {
     if (id >= 0) {
-      ci.threadsById[id].draft = drafts[id].draft;
-      ci.threadsById[id].newResolved = drafts[id].newResolved;
+      ci.threadsById[id].draft = ci.drafts[id].draft;
+      ci.threadsById[id].newResolved = ci.drafts[id].newResolved;
     } else {
-      allThreads.push(drafts[id]);
+      allThreads.push(ci.drafts[id]);
     }
   }
 
