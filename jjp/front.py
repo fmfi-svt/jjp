@@ -1,4 +1,5 @@
 
+import json
 import os
 from werkzeug.routing import Rule
 from werkzeug.wrappers import Response
@@ -9,7 +10,13 @@ with open(os.path.dirname(__file__) + '/front.html') as f:
 
 
 def front(request):
-    return Response(content, content_type='text/html; charset=UTF-8')
+    my_data = {}
+    if request.remote_user:
+        my_data['username'] = request.remote_user
+
+    my_content = content.replace('/*INSERT*/',
+        'JJP = ' + json.dumps(my_data).replace('</', '<\\/'))
+    return Response(my_content, content_type='text/html; charset=UTF-8')
 
 
 def die(request):

@@ -2,7 +2,7 @@
 (function ($) {
 
 
-JJP = {};
+if (!window.JJP) JJP = {};
 
 
 JJP.context = 3;   // TODO: configurable
@@ -42,7 +42,7 @@ JJP.renderLoading = function () {
 JJP.renderTop = function () {
   var $top = $("<div/>").addClass("top");
   $top.append($("<h1/>").text(t("JJP")));
-  if (window.JJP_username) {
+  if (JJP.username) {
     $top.append(
       $("<span/>").addClass("login").text(JJP.username + " \u2014 ").append(
         $("<a href='logout'></a>").text(t("Log out"))));
@@ -162,7 +162,7 @@ JJP.makeDraftId = function () {
 
 
 JJP.createGlobalThread = function () {
-  if (!window.JJP_username) {
+  if (!JJP.username) {
     alert(t("Please log in to leave comments."));
     return;
   }
@@ -172,7 +172,7 @@ JJP.createGlobalThread = function () {
 
 
 JJP.createInlineThread = function ($tr, side) {
-  if (!window.JJP_username) {
+  if (!JJP.username) {
     alert(t("Please log in to leave comments."));
     return;
   }

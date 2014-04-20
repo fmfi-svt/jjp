@@ -7,8 +7,8 @@ from werkzeug.wrappers import Request
 from werkzeug.wsgi import SharedDataMiddleware
 from .dbhelper import DbHelper
 
-from . import front, getdiff, getissue, models, serve
-site_modules = [front, getdiff, getissue, models, serve]
+from . import front, getdiff, getissue, login, models, serve
+site_modules = [front, getdiff, getissue, login, models, serve]
 
 class JjpApp(object):
     def __init__(self, settings):
@@ -67,6 +67,9 @@ class JjpApp(object):
         self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
             '/static': os.path.join(os.path.dirname(__file__), 'static')
         })
+
+    def wrap_dev_login(self):
+        self.wsgi_app = login.wrap_dev_login(self.wsgi_app)
 
     def __call__(self, *args):
         return self.wsgi_app(*args)
