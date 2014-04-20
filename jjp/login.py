@@ -3,12 +3,17 @@ from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Rule
 from werkzeug.exceptions import InternalServerError
 from werkzeug.utils import redirect
+from .models import Users
 
 
 def login(request):
     if request.remote_user is None:
         raise InternalServerError(
             '/login is supposed to have "CosignAllowPublicAccess Off"')
+
+    db = request.db
+    if not list(db.select(Users, username=request.remote_user)):
+        db.insert(Users, username=request.remote_user)
 
     home = request.url_root
     next = request.args.get('to', home)
