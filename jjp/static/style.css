@@ -2,6 +2,7 @@
 body {
   font: 10pt Arial, sans-serif;
   margin: 3.5em 0.7em 0.7em 0.7em;
+  overflow-y: scroll;
 }
 
 a, .fakelink {
@@ -79,9 +80,20 @@ pre, code {
   padding: .5em;
 }
 
+/* METADATA *******************************************************************/
+
+.metadata th {
+  text-align: right;
+}
+.metadata .status1 {
+  font-weight: bold;
+  color: green;
+}
+
 /* COMMITS ********************************************************************/
 
 .commits table {
+  padding-top: 1em;
   width: 100%;
 }
 

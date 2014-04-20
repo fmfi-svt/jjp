@@ -69,7 +69,7 @@ JJP.reply = function () {
   }
 
   if (!data.comments.length) {
-    alert("Press Reply after you write your comments.");
+    alert(t("Press the button after you write your comments."));
     return;
   }
 
@@ -84,7 +84,7 @@ JJP.reply = function () {
       location.reload();
     },
     error: function () {
-      alert("Error!");
+      alert(t("Error!"));
       // TODO: process errors better.
     }
   });
@@ -99,8 +99,23 @@ JJP.renderIssue = function () {
     .text('#' + issue.id + ': ' + issue.title)));
   if (JJP.username) {
     $(".top").append($("<div/>").addClass("reply").append(
-      $("<button />").text(t("Reply")).click(JJP.reply)));
+      $("<button />").text(t("Send Comments")).click(JJP.reply)));
   }
+
+  var $metadata = $('<table/>').addClass('metadata').appendTo('#jjp');
+  $metadata.append($('<tr/>').append(
+    $('<th/>').text(t('Upstream branch:')),
+    $('<td/>').text(issue.upstream_branch + t(' at ') + issue.upstream_url)
+  ));
+  $metadata.append($('<tr/>').append(
+    $('<th/>').text(t('Topic branch:')),
+    $('<td/>').text(issue.topic_branch + t(' at ') + issue.topic_url)
+  ));
+  var statuses = [t('Open'), t('Submitted'), t('Abandoned')];
+  $metadata.append($('<tr/>').append(
+    $('<th/>').text(t('Status:')),
+    $('<td/>').addClass('status' + issue.status).text(statuses[issue.status])
+  ));
 
   var rows = {};
   var $commits = $("<table/>").appendTo($("<form/>").addClass("commits").appendTo("#jjp"));
