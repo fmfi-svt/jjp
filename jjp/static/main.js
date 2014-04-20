@@ -137,13 +137,84 @@ JJP.renderIssue = function () {
   $('#jjp').append($('<div>').addClass('difflist')
     .append($('<div/>').addClass('loading').text(t("Loading..."))));
 
-  // TODO: Global threads.
+  var $globalthreads = $('<div>').addClass('globalthreads').appendTo('#jjp');
+  $globalthreads.append($.map(
+    JJP.currentIssue.threadsByLocation['global'] || [], JJP.renderThread));
+
+  $('#jjp').append($('<p/>').append($('<button/>').text(t('New global thread')).click(function () {
+    JJP.createGlobalThread();
+  })));
 }
 
 
-JJP.renderDiffContent = function (diffdata) {
+JJP.renderThread = function (thread) {
+  // TODO: WIP.
+  var $thread = $('<div/>').addClass('thread').data('thread', thread);
+  $thread.text(JSON.stringify(thread));
+  return $thread;
+}
+
+
+JJP.makeDraftId = function () {
+  for (var i = -1; JJP.currentIssue.drafts[i]; i--) {}
+  return i;
+}
+
+
+JJP.createGlobalThread = function () {
+  if (!window.JJP_username) {
+    alert(t("Please log in to leave comments."));
+    return;
+  }
+  var thread = { id: JJP.makeDraftId(), draft: "", resolved: false };
+  $('.globalthreads').append(JJP.renderThread(thread));
+}
+
+
+JJP.createInlineThread = function ($tr, side) {
+  if (!window.JJP_username) {
+    alert(t("Please log in to leave comments."));
+    return;
+  }
+  var me = $tr.data('me');
+  var thread = {
+    id: JJP.makeDraftId(),
+    diff_from: JJP.currentLeft,
+    diff_to: JJP.currentRight,
+    diff_side: side,
+    file: me[0],
+    line: side ? me[2] : me[1],
+    draft: "",
+    resolved: false
+  };
+  $tr.find('td').eq(side).append(JJP.renderThread(thread));
+}
+
+
+JJP.renderCommentRow = function (filename, leftLine, rightLine) {
+  var $tr = $('<tr/>').addClass('comments').data('me', [filename, leftLine, rightLine]);
+  var lloc = filename + ":" + leftLine + ":0";
+  var rloc = filename + ":" + rightLine + ":1";
+  var lthreads = JJP.currentIssue.threadsByLocation[lloc];
+  var rthreads = JJP.currentIssue.threadsByLocation[rloc];
+  var $left = $.map(lthreads || [], JJP.renderThread);
+  var $right = $.map(rthreads || [], JJP.renderThread);
+  // TODO: Find out if this is faster: if ($left.length || $right.length) {
+  $tr.append($('<td/>').attr('colspan', '2').append(lthreads),
+             $('<td/>').attr('colspan', '2').append(lthreads));
+  return $tr;
+}
+
+
+JJP.renderDiffContent = function (filename, diffdata) {
   var $table = $('<table/>');
   var ln = { 'old': 0, 'new': 0 };
+
+  $table.on('dblclick', '.c', function (event) {
+    JJP.createInlineThread($(this).closest('tr').next(), $(this).index() == 3 ? 1 : 0);
+    event.preventDefault();
+    return false;
+  });
 
   function processLine($tr, tag, line) {
     if (line === undefined) {
@@ -163,12 +234,12 @@ JJP.renderDiffContent = function (diffdata) {
     }
   }
   function equalLine(row) {
-    return $('<tr/>').append(
+    return $('<tr/>').addClass('code equal').append(
       $('<td/>').addClass('ln').text('\u00a0' + row[0] + '\u00a0'),
       $('<td/>').addClass('c').text(row[2]),
       $('<td/>').addClass('ln').text('\u00a0' + row[1] + '\u00a0'),
       $('<td/>').addClass('c').text(row[2])
-    );
+    ).add(JJP.renderCommentRow(filename, row[0], row[1]));
   }
   function expanderClick() {
     var $expander = $(this).closest('.expander');
@@ -213,9 +284,11 @@ JJP.renderDiffContent = function (diffdata) {
       }
     } else {
       for (var i = 0; i < oldLines.length || i < newLines.length; i++) {
-        var $tr = $('<tr/>').appendTo($table);
+        var $tr = $('<tr/>').addClass('code').appendTo($table);
         processLine($tr, 'old', oldLines[i]);
         processLine($tr, 'new', newLines[i]);
+        $table.append(JJP.renderCommentRow(filename,
+          oldLines[i] ? ln['old'] : null, newLines[i] ? ln['new'] : null));
       }
     }
   }
@@ -238,7 +311,7 @@ JJP.renderDiff = function () {
       srcmode != dstmode && status != "A" && status != "D" ?
         $("<code/>").addClass("status").text(srcmode + " \u2192 " + dstmode) : ""
     ));
-    $difflist.append($("<div/>").addClass('diff').hide().append(JJP.renderDiffContent(diffdata)));
+    $difflist.append($("<div/>").addClass('diff').hide().append(JJP.renderDiffContent(dstfilename, diffdata)));
   }
 
   function clickFile() {
@@ -269,6 +342,57 @@ JJP.renderIndex = function () {
 }
 
 
+JJP.makeIndexes = function () {
+  var ci = JJP.currentIssue;
+
+  ci.messagesById = {};
+  for (var i = 0; i < ci.messages.length; i++) {
+    var message = ci.message[i];
+    message.comments = [];
+    ci.messagesById[message.id] = message;
+  }
+
+  ci.threadsById = {};
+  for (var i = 0; i < ci.threads.length; i++) {
+    var thread = ci.threads[i];
+    thread.comments = [];
+    ci.threadsById[thread.id] = thread;
+  }
+
+  for (var i = 0; i < ci.comments.length; i++) {
+    var comment = ci.comments[i];
+    ci.messagesById[comment.message_id].comments.push(comment);
+    ci.threadsById[comment.thread_id].comments.push(comment);
+  }
+
+  var allThreads = ci.threads.slice();
+  ci.drafts = JSON.parse(localStorage.getItem("jjpdraft" + ci.issue.id) || "{}");
+  for (var id in ci.drafts) {
+    if (id >= 0) {
+      ci.threadsById[id].draft = drafts[id].draft;
+      ci.threadsById[id].newResolved = drafts[id].newResolved;
+    } else {
+      allThreads.push(drafts[id]);
+    }
+  }
+
+  ci.threadsByLocation = {};
+  for (var i = 0; i < allThreads.length; i++) {
+    var thread = allThreads[i], location = null;
+    if (thread.diff_from || thread.diff_to) {
+      if (thread.diff_from != JJP.currentLeft || thread.diff_to != JJP.currentRight) continue;
+      location = thread.file + ":" + thread.line + ":" + thread.diff_side;
+    } else {
+      location = 'global';
+    }
+    if (!ci.threadsByLocation[location]) {
+      ci.threadsByLocation[location] = [];
+    }
+    ci.threadsByLocation[location].push(thread);
+  }
+}
+
+
 JJP.goIssue = function (issueId, hashLeft, hashRight) {
   var wantPath = location.hash;
 
@@ -291,6 +415,8 @@ JJP.goIssue = function (issueId, hashLeft, hashRight) {
 
     JJP.currentLeft = hashLeft;
     JJP.currentRight = hashRight;
+
+    JJP.makeIndexes();
 
     // TODO: Only render issue if changed. (Change checked radios if needed.)
     JJP.renderIssue();

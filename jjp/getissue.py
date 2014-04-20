@@ -41,13 +41,15 @@ def get_issue(request, issue_id):
 
     messages = list(db.execute(select([Messages, Users.c.username])
         .where(Messages.c.issue_id == issue_id)
-        .where(Messages.c.author_id == Users.c.id)))
+        .where(Messages.c.author_id == Users.c.id)
+        .order_by(Messages.c.timestamp)))
 
     threads = list(db.select(Threads, issue_id=issue_id))
 
     comments = list(db.execute(select([Comments])
         .where(Comments.c.message_id == Messages.c.id)
-        .where(Messages.c.issue_id == issue_id)))
+        .where(Messages.c.issue_id == issue_id)
+        .order_by(Messages.c.timestamp)))
 
     commits = {}
     for version in versions:
