@@ -312,13 +312,15 @@ JJP.createInlineThread = function ($tr, side) {
     return;
   }
   var me = $tr.data('me');
+  var line = side ? me[2] : me[1];
+  if (!line) return;
   var thread = {
     id: JJP.makeDraftId(),
     diff_from: JJP.currentLeft,
     diff_to: JJP.currentRight,
     diff_side: side,
     file: me[0],
-    line: side ? me[2] : me[1],
+    line: line,
     body: "",
     resolved: false,
     fresh: true
