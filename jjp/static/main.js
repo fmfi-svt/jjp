@@ -461,18 +461,68 @@ JJP.renderIndex = function () {
     var value = $("#issuenum").val();
     if (!value.match(/^\d+$/)) {
       alert(t("Not a number!"));
-      return;
+      return false;
     }
     location.hash = '#' + value;
+    return false;
   }
   $("#jjp").empty().append(
     JJP.renderTop(),
+    $('<h3/>').text(t('Open issue')),
     $("<form/>").submit(formSubmit).append(
       $("<p/>")
         .text(t("Open issue # "))
         .append($("<input type='text' size='5' id='issuenum' />"))
         .append("<span> </span>")
         .append($("<input type='submit' />").val(t("OK")))
+    )
+  );
+
+  function row(label, fieldName) {
+    return $("<tr/>").append(
+      $("<th/>").text(label),
+      $("<td/>").append($("<input type='text'/>").attr("name", fieldName)));
+  }
+  function createIssue() {
+    var $form = $(this);
+    var ok = true;
+    var data = {};
+    $form.find('input:text').each(function () {
+      if (!this.value) ok = false;
+      data[this.name] = this.value;
+    });
+    if (!ok) {
+      alert(t("All fields are required!"))
+      return false;
+    }
+    $.ajax({
+      type: 'POST',
+      url: 'post/issue',
+      data: JSON.stringify(data),
+      contentType: 'application/json',
+      dataType: 'json',
+      success: function (result) {
+        location.hash = '#' + result.saved;
+      },
+      error: function () {
+        alert(t("Error!"));
+        // TODO: process errors better.
+      }
+    });
+    return false;
+  }
+  $('#jjp').append(
+    $('<h3/>').text(t('Create new issue')),
+    !JJP.username ? $('<p/>').text(t('Log in to create a new issue.')) :
+    $('<form/>').submit(createIssue).append(
+      $("<table/>").addClass('metadata').append(
+        row(t("Title:"), "title"),
+        row(t("Upstream URL:"), "upstream_url"),
+        row(t("Upstream branch:"), "upstream_branch"),
+        row(t("Topic URL:"), "topic_url"),
+        row(t("Topic branch:"), "topic_branch"),
+        $("<tr/>").append($("<th/>"), $("<td/>").append(
+          $("<input type='submit'>").val(t("Create")))))
     )
   );
 }
