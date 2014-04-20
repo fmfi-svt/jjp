@@ -122,19 +122,28 @@ pre, code, .diff {
 
 .difflist .file {
   cursor: pointer;
-  background: #FFA;
+  background: #FFF2E0;   /* lighter blanchedalmond */
   padding: 0.2em 0.7em;
   border-bottom: solid #888 1px;
+}
+.difflist .file:hover {
+  background: #FFEBCD;   /* blanchedalmond */
 }
 
 .difflist .file code {
   margin-right: 1em;
 }
 
+.difflist .file .name {
+  text-shadow: 1px 1px white;
+}
+
 .difflist .file .status {
-  background: #FFF;
+  background: #FF8;
   padding: 1px;
 }
+.difflist .file .status.D { background: #FAA; }
+.difflist .file .status.A { background: #9F9; }
 
 .diff table td {
   margin: 0;
@@ -148,7 +157,7 @@ pre, code, .diff {
 }
 
 .diff table {
-  margin: 1em;
+  margin: 1em auto;
   border: solid #CCC 1px;
   border-collapse: collapse;
 }
@@ -160,6 +169,7 @@ pre, code, .diff {
   width: 80ex;  /* TODO: configurable size */
 }
 
+.diff .expander { background: #ADE; text-align: center; font-family: sans-serif; }
 .diff .old { background: #FEE; }
 .diff .new { background: #DFD; }
 .diff .old.ch, .diff .old .ch { background: #FAA; }

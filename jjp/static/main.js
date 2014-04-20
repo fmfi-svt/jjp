@@ -5,6 +5,9 @@
 JJP = {};
 
 
+JJP.context = 3;   // TODO: configurable
+
+
 function t(str) {
   return str;
 }
@@ -159,22 +162,55 @@ JJP.renderDiffContent = function (diffdata) {
       $td.text(line);
     }
   }
+  function equalLine(row) {
+    return $('<tr/>').append(
+      $('<td/>').addClass('ln').text('\u00a0' + row[0] + '\u00a0'),
+      $('<td/>').addClass('c').text(row[2]),
+      $('<td/>').addClass('ln').text('\u00a0' + row[1] + '\u00a0'),
+      $('<td/>').addClass('c').text(row[2])
+    );
+  }
+  function expanderClick() {
+    var $expander = $(this).closest('.expander');
+    var rows = $expander.data('hiddenRows');
+    $expander.after($.map(rows, equalLine));
+    $expander.remove();
+  }
 
   for (var ci = 0; ci < diffdata.length; ci++) {
     var chunk = diffdata[ci];
     var tag = chunk[0], oldLines = chunk[1], newLines = chunk[2];
     if (tag == 'equal') {
+      var isVisible = [];
+      if (ci != 0) {
+        for (var i = 0; i < JJP.context; i++) isVisible[i] = true;
+      }
+      if (ci != diffdata.length - 1) {
+        for (var i = 0; i < JJP.context; i++) isVisible[oldLines.length - 1 - i] = true;
+      }
+      var hidden = [];
+      for (var i = 0; i < oldLines.length; i++) if (!isVisible[i]) {
+        hidden.push([ln['old']+1+i, ln['new']+1+i, oldLines[i]]);
+      }
+      if (hidden.length == 1) {
+        hidden = [];
+        for (var i = 0; i < oldLines.length; i++) isVisible[i] = true;
+      }
+
+      var expander = null;
       for (var i = 0; i < oldLines.length; i++) {
         ln['old']++;
         ln['new']++;
-        $('<tr/>').appendTo($table).append(
-          $('<td/>').addClass('ln').text('\u00a0' + ln['old'] + '\u00a0'),
-          $('<td/>').addClass('c').text(oldLines[i]),
-          $('<td/>').addClass('ln').text('\u00a0' + ln['new'] + '\u00a0'),
-          $('<td/>').addClass('c').text(oldLines[i])
-        );
+        if (isVisible[i]) {
+          $table.append(equalLine([ln['old'], ln['new'], oldLines[i]]));
+        } else if (!expander) {
+          expander = $('<tr/>').appendTo($table).addClass('expander').
+            data('hiddenRows', hidden).append(
+              $('<td/>').attr('colspan', 4)
+              .text(t('{num} matching lines \u2014 ').replace('{num}', hidden.length))
+              .append(JJP.fakelink().text(t('Expand all')).click(expanderClick)));
+        }
       }
-      // TODO: Context and hidden lines.
     } else {
       for (var i = 0; i < oldLines.length || i < newLines.length; i++) {
         var $tr = $('<tr/>').appendTo($table);
@@ -195,7 +231,7 @@ JJP.renderDiff = function () {
     var srcfilename = row[0], dstfilename = row[1], srcmode = row[2], dstmode = row[3], status = row[4], diffdata = row[5];
     var text = (srcfilename ? srcfilename + " \u2192 " : "") + dstfilename;
     $difflist.append($("<div/>").addClass('file').click(clickFile).append(
-      $('<code/>').addClass("status").text(status.substring(0, 1)),
+      $('<code/>').addClass("status " + status.substring(0, 1)).text(status.substring(0, 1)),
       srcfilename ? $("<code/>").addClass("name").text(srcfilename) : "",
       srcfilename ? $("<span/>").text(" \u2192 ") : "",
       $("<code/>").addClass("name").text(dstfilename),
