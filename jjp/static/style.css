@@ -1,0 +1,54 @@
+
+body {
+  font: 10pt Arial, sans-serif;
+  margin: 3.5em 0.7em 0.7em 0.7em;
+}
+
+a {
+  color: blue;
+}
+
+/* TOP ************************************************************************/
+
+.top {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: #CCF;
+}
+
+.top h1, .top h2 {
+  display: inline-block;
+  line-height: 1;
+  font-size: 2em;
+  margin: 0;
+  padding: .2em;
+}
+
+.top h1 {
+  background: black;
+  color: white;
+}
+
+.top h2 {
+  font-weight: normal;
+  padding: .2em 0.5em;
+}
+.top h2 a {
+  color: black;
+  text-decoration: none;
+}
+.top h2 a:hover {
+  color: #00A;
+}
+
+.top .reply {
+  display: inline-block;
+  vertical-align: 25%;
+}
+
+.top .login {
+  float: right;
+  padding: .5em;
+}
