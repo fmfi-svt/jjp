@@ -19,7 +19,7 @@ Issues = Table('issues', metadata,
     Column('topic_branch', String(255), nullable=False),
     Column('topic_url', String(255), nullable=False),
     Column('topic_latesthash', String(255), nullable=False),
-    Column('status', Integer, nullable=False),
+    Column('status', Integer, nullable=False, index=True),
 )
 Issues.STATUS_OPEN = 0
 Issues.STATUS_SUBMITTED = 1
