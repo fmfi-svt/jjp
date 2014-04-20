@@ -157,12 +157,12 @@ pre, code {
   vertical-align: top;
 }
 
-.diff tr.comments td {
+.diff td.comments {
   margin: 0;
   padding: 0;
 }
 
-.diff table {
+.difftable {
   margin: 1em auto;
   border: solid #CCC 1px;
   border-collapse: collapse;
@@ -201,4 +201,12 @@ pre, code {
   -moz-box-sizing: border-box;
   width: 100%;
   resize: vertical;
+}
+
+.thread dl {
+  margin: 0;
+  padding: 0;
+}
+.thread dd {
+  padding-bottom: 0.3em;
 }

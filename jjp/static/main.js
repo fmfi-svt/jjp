@@ -183,9 +183,17 @@ JJP.renderThread = function (thread) {
   var fresh = thread.fresh;
   delete thread.fresh;
 
-  // TODO: WIP.
   var $thread = $('<div/>').addClass('thread').data('thread', thread);
-  $thread.text(JSON.stringify(thread));
+
+  if (thread.comments) {
+    var $comments = $('<dl/>').appendTo($thread);
+    for (var i = 0; i < thread.comments.length; i++) {
+      var comment = thread.comments[i];
+      var message = JJP.currentIssue.messagesById[comment.message_id];
+      $comments.append($('<dt/>').text(message.username + ' (' + message.timestamp + ')'));
+      $comments.append($('<dd/>').text(comment.body));
+    }
+  }
 
   var originalResolved = thread.id >= 0 ? thread.resolved : false;
   var drafts = JJP.currentIssue.drafts;
@@ -313,14 +321,14 @@ JJP.renderCommentRow = function (filename, leftLine, rightLine) {
   var $left = $.map(lthreads || [], JJP.renderThread);
   var $right = $.map(rthreads || [], JJP.renderThread);
   // TODO: Find out if this is faster: if ($left.length || $right.length) {
-  $tr.append($('<td/>').attr('colspan', '2').append($left),
-             $('<td/>').attr('colspan', '2').append($right));
+  $tr.append($('<td/>').addClass('comments').attr('colspan', '2').append($left),
+             $('<td/>').addClass('comments').attr('colspan', '2').append($right));
   return $tr;
 }
 
 
 JJP.renderDiffContent = function (filename, diffdata) {
-  var $table = $('<table/>');
+  var $table = $('<table/>').addClass('difftable');
   var ln = { 'old': 0, 'new': 0 };
 
   $table.on('dblclick', '.c', function (event) {
