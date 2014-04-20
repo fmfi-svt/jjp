@@ -2,7 +2,7 @@
 import os
 import sys
 from hashlib import sha1
-from sqlalchemy.sql import select
+from sqlalchemy.sql import select, func
 from .dbhelper import DbHelper
 from .models import Issues, Versions
 from .utils import run_git, git_cat_file
@@ -77,8 +77,8 @@ def do_cron(app, db):
         # case 3: new version
         db.update(Issues, dict(id=issue.id),
             upstream_latesthash=new_upstream, topic_latesthash=new_topic)
-        count = db.execute(select([Versions])
-            .where(Versions.c.issue_id == issue.id).count()).scalar()
+        count = db.execute(select([func.count()],
+            Versions.c.issue_id == issue.id, Versions)).scalar()
         log('Issue {}: Creating version {}\n'.format(issue.id, count+1))
         db.insert(Versions, issue_id=issue.id, version_num=count+1,
                             base_hash=new_base, topic_hash=new_topic)
