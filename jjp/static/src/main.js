@@ -34,8 +34,8 @@ JJP.ajaxRequest = function (url, data, success, error) {
     data: data ? JSON.stringify(data) : undefined,
     dataType: 'json',
     success: success,
-    error: function (xhr, textStatus) {
-      error(textStatus || t("Network error"));
+    error: function (xhr, textStatus, errorThrown) {
+      error(errorThrown || textStatus || t("Network error"));
     }
   });
 }
@@ -81,13 +81,98 @@ var Header = JJP.Header = React.createClass({
 });
 
 
+var IndexOpenForm = JJP.IndexOpenForm = React.createClass({
+  getInitialState: function () {
+    return { id: '' };
+  },
+
+  handleChange: function (event) {
+    this.setState({ id: event.target.value });
+  },
+
+  handleSubmit: function (event) {
+    event.preventDefault();
+    if(!this.state.id.match(/^\d+$/)) {
+      alert(t("Not a number!"));
+    } else {
+      location.hash = '#' + this.state.id;
+    }
+  },
+
+  render: function () {
+    return <form onSubmit={this.handleSubmit}>
+      <p>
+        <t>Open issue # </t>
+        <input type="text" size="5"
+               value={this.state.id} onChange={this.handleChange} />
+        {" "}
+        <input type="submit" value={t("OK")} />
+      </p>
+    </form>;
+  }
+});
+
+
+var IndexCreateForm = JJP.IndexCreateForm = React.createClass({
+  getInitialState: function () {
+    return {
+      title: '',
+      upstream_url: '', upstream_branch: '',
+      topic_url: '', topic_branch: ''
+    };
+  },
+
+  handleChange: function (event) {
+    var update = {}; update[event.target.name] = event.target.value;
+    this.setState(update);
+  },
+
+  handleSubmit: function (event) {
+    event.preventDefault();
+    for (var key in this.state) {
+      if (!this.state[key]) {
+        alert(t("All fields are required!"));
+        return;
+      }
+    }
+    JJP.ajaxRequest("post/issue", this.state, function (result) {
+      location.hash = '#' + result.saved;
+    });
+  },
+
+  _row: function (label, name) {
+    return <tr>
+      <th>{label}</th>
+      <td><input type="text" name={name} value={this.state[name]}
+                 onChange={this.handleChange} /></td>
+    </tr>;
+  },
+  render: function () {
+    return <form onSubmit={this.handleSubmit}>
+      <table className="metadata">
+        {this._row(t("Title:"), "title")}
+        {this._row(t("Upstream URL:"), "upstream_url")}
+        {this._row(t("Upstream branch:"), "upstream_branch")}
+        {this._row(t("Topic URL:"), "topic_url")}
+        {this._row(t("Topic branch:"), "topic_branch")}
+        <tr><th></th><td><input type="submit" value={t("Create")} /></td></tr>
+      </table>
+    </form>
+  }
+});
+
+
 var IndexPage = JJP.IndexPage = React.createClass({
   render: function () {
     return <div>
       <Header username={this.props.username} />
-      <p><t>TODO</t></p>
+      <h3><t>Open issue</t></h3>
+      <IndexOpenForm />
+      <h3><t>Create new issue</t></h3>
+      {this.props.username ?
+        <IndexCreateForm /> :
+        <p><t>Log in to create a new issue.</t></p>}
     </div>;
-    // TODO
   }
 });
 
