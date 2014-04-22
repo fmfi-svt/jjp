@@ -10,12 +10,15 @@ with open(os.path.dirname(__file__) + '/front.html') as f:
 
 
 def front(request):
-    my_data = {}
+    props = {}
     if request.remote_user:
-        my_data['username'] = request.remote_user
+        props['username'] = request.remote_user
 
-    my_content = content.replace('/*INSERT*/',
-        'JJP = ' + json.dumps(my_data).replace('</', '<\\/'))
+    my_content = content.replace('/*PROPS*/',
+        json.dumps(props).replace('</', '<\\/'))
+    if 'debug' in request.args:
+        my_content = my_content.replace('.min.js', '.js')
+
     return Response(my_content, content_type='text/html; charset=UTF-8')
 
 

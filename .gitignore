@@ -5,3 +5,7 @@
 *~
 /*env
 local_settings.py
+repo
+node_modules
+jjp/static/build
+jjp/static/*.js
