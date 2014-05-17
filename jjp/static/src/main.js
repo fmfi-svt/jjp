@@ -66,12 +66,14 @@ var fakelink = JJP.fakelink = React.createClass({
 var Header = JJP.Header = React.createClass({
   render: function () {
     var loginLink = "login?to=" + encodeURIComponent(location.href);
+
     var login = this.props.username ?
       <span className="login">
         {this.props.username + " \u2014 "}
         <a href="logout"><t>Log out</t></a>
       </span> :
       <span className="login"><a href={loginLink}><t>Log in</t></a></span>;
+
     return <div className="top">
       <h1><t>JJP</t></h1>
       {login}

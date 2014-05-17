@@ -1,0 +1,97 @@
+
+Portovanie na React.js nevyslo.
+
+React je principialne dost fajn, ale JJP je prenho vo viacerych ohladoch
+najhorsi pripad.
+
+
+
+Problemy s diffmi:
+
+React pri beznom pouziti renderuje celu aplikaciu do virtualneho DOM vzdy, ked
+sa nieco zmeni (co je napr vzdy ked uzivatel stlaci klavesu pri pisani svojho
+komentaru). To je vacsinou rychle lebo je to len virtualny DOM (a v ozajstnom
+sa meni len to co treba), a navyse, React ma mechanizmy, vdaka ktorym je mozne
+preskocit updatovanie celeho nejakeho podstromu.
+
+JJP ma podporovat aj ukazovanie fest obrovskych diffov. Lenze obrovsky diff je
+fest sprosty case. Ma hrozne vela riadkov, ale menia sa len tie komentarove. A
+aj z nich vacsinou len jeden naraz. Navyse, uz len zistit, ake riadky existuju,
+je vypoctovo netrivialne - iterujes chunky, pamatas si line numbers, riesis
+isVisible (kontextualne schovavanie rovnakych riadkov), atd. To ovplyvnuje aj,
+ktore komentare vidno, apod.
+
+shouldComponentUpdate nam tuto moc nepomaha, lebo ta tabulka je "flat" - casto
+sa zmeni jeden child, takze tabulka samotna sa musi updatnut, ale vypoctovo
+narocne je praveze render()-ovanie tabulky a zistovanie akych ma potomkov.
+
+Sice som to nebenchmarkoval, ale uz principialne sa mi nepaci mat O(N) operacii
+po kazdom keypresse. Aj keby to pre kratsie diffy behalo, pre dlhsie nebude.
+
+Legitimne Reactove riesenie by asi vyzeralo takto:
+
+- Cielom je, aby ked je vela <tr class="code"> za sebou, tak boli spolu zavreti
+  v jednom <tbody>.
+- <tbody> nekoreluje s diff chunkami, ale s tym kde su komentare.
+- DiffFile komponent (co renderuje tabulku) rozlisuje "velky render" a "maly
+  render". Velky render sa deje vtedy, ked treba zmenit zoznam <tbody>, cize
+  ked pribuda/ubuda inline komentar, alebo expandujeme equal chunk. Vtedy fakt
+  prejdem cely diff, pocitam si line numbers atd, a generujem take <tbody> ake
+  treba. Kazde <tbody> dostane novy cerstvy kluc, a zapamatam si ich zoznam.
+- Maly render sa deje, ak len zmenim draft apod. Vtedy render() vrati to iste,
+  ako pri poslednom velkom renderovani.
+- Komponent starajuci sa o <tbody> vzdy z shouldComponentUpdate vrati false.
+
+Toto asi zvladne zmenit draft v O(1), chcem povedat O(pocet threadov), a nerobi
+problem ze zoznam existujucich <tbody> sa neda poriadne ratat. (O threade
+nevieme rychlo zistit index <tr>, kam patri, kvoli blank riadkom to nie je
+previazane s thread line number.)
+
+Lenze je to humus. A nie je mi vobec jasne ako by sa kodil ten velky/maly
+render.
+
+
+
+Problemy s threadmi:
+
+Kym mas len todomvc, tak je vsetko pekne... Thready su skarede. Problemy su
+principialne dva: jednak rozlisovanie threadov a draftov, a druhak setrenie
+renderovania.
+
+V JJP mas ulozene thready co uz maju svoje databazove id, a mozu dostat draft,
+co ma svoje body a resolved. A tiez mas thready co este v databaze nie su, a
+prave ich vyrabas. Niekedy sa ti hodi brat thread a draft ako dva rozne
+objekty, niekedy ako jeden. V tomto som ani predtym nemal poriadok, ale tu mi
+to o to viac komplikuje zivot.
+
+Navyse, toto je vlastne mozno moot point vzhladom na vyssiu sekciu o diffoch,
+ale kedze chcem lacny keypress, chcem o celom subore vediet povedat, ze sa tam
+nic nezmenilo a netreba ho updatovat. To znamena, ze bud chces immutable model,
+alebo timestampy.
+
+Lenze nemame striktne stromovu strukturu. Thready sa mozu ukazovat na viacerych
+miestach, a o kazdom mieste chces trackovat timestamp, kedy sa v nom naposledy
+nieco zmenilo. Potom si kazdy thread musi pamatat, na ktorych miestach je, etc
+etc.
+
+Plus chceme casom podporovat, aby sa thread ukazoval aj ked nesedi uplne presne
+lava aj prava strana ukazovaneho diffu, ale "ThreadCollection" by som chcel aby
+bol furt ten isty (after all globalne thready sa nemenia), a to je po tom o to
+vacsi grc.
+
+Realne, asi najlepsie riesenie tohto by vyzeralo takto:
+
+- V IssuePage.render() vzdy zavolam ThreadCollection.getLocations(left,right)
+  co vypluje mapovanie { someLocationString: [localid,localid,localid,...] }
+  a toto mapovanie dostanu vsetky zainteresovane partie.
+  (Pre subory moze byt hlbsia mapa, najprv filename, potom riadok.)
+- DiffFile proste zoberie this.props.threadLocations[file], serializuje ho na
+  string (to je v sucte pre vsetky DiffFiles stale O(pocet threadov)) a porovna
+  s poslednym vyrenderovanym.
+  Teda chcem povedat, namapuje kazdy localid na timestamp, whatever.
+
+Hej, to by asi slo. Ale v tomto momente uz sa radsej vraciam ku cistemu jQuery.
+
+React je principialne fajn, ale asi az v nejakom inom projekte (kde nebudu
+tabulky s tisicmi riadkov).
+

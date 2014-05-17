@@ -1,0 +1,36 @@
+model design
+
+vseobecne uvahy okolo reactovych modelov
+
+MOZNOST 1:
+jednoducha odpoved:
+maj mutable model objekt, a vzdy ked sa zmeni, zavolaj myRootComponent.forceUpdate()
+pricom ten model bude ulozeny v myRootComponent.state
+
+hento je absolutne koser podporovany model.
+ale ak fakt chces immutable (napr lebo shouldComponentUpdate):
+
+basically chces aby zmena v konecnom dosledku spravila myRootComponent.setState({'bla':newModel})
+
+MOZNOST 2: model su plain old json objekty
+potom chces "link" objekty (ala valueLink atd) co obsahuju { value, requestChange }
+top level link objekt (spraveny ako makeLink(myRootComponent, 'bla')) ma requestChange co zavola ten setState.
+navyse ma metody co vyrabaju nizsie link objekty, ktorych requestChange meni zlozitejsie struktury.
+spravit to vseobecne moze chciet trocha zamyslenia, ale plusminus takto to bude vyzerat.
+
+lenze co ak sa ti nepaci ze model je plain old objekt a chces aby mal triedu a metody?
+ide to nejako zariadit? mozno nasledovne:
+
+MOZNOST 3: model je trieda ale je immutable
+takze model ma standardny interface s gettermi (alebo priamym getovanim) a settermetodami
+a chceme aby setter metody sposobili myRootComponent.setState({'bla':newModel})
+tak takto:
+vsetky model objekty si budu pamatat svoj kluc a parenta (v rootovi priamo component)
+a ked na lubovolnom zavolas setter metodu, tak on vypocita noveho seba (s novou hodnotou) a
+zavola patricnu setter metodu v parentovi. tym padom nakoniec zavolame setState s presne tym co treba.
+
+nevyhoda je samozrejme ze objekty musia poznat svojho parenta.
+ak sa ti nepaci ze prave jeden parent, whatever, sprav subscriptiony a mas viacero. but still.
+
+realne asi mi staci moznost 1, len chcem futureproofing ze je _mozne_ prejst na immutable vec.
+tbh chcel by som kaslat na immutability a riesit shouldComponentUpdate nejakymi timestampami ale neviem.

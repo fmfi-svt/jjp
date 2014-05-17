@@ -3,7 +3,7 @@
 (function () {
 
 
-var t = JJP.t, fakelink = JJP.fakelink, Header = JJP.Header;
+var t = JJP.t, fakelink = JJP.fakelink, Header = JJP.Header, AsyncDiffList = JJP.AsyncDiffList;
 
 
 var IssueMetadata = JJP.IssueMetadata = React.createClass({
@@ -82,6 +82,7 @@ var IssueCommitsRow = JJP.IssueCommitsRow = React.createClass({
         </pre>
       </td>
     </tr>;
+    // TODO: highlight parents on hover.
   }
 });
 
@@ -166,6 +167,9 @@ var IssuePage = JJP.IssuePage = React.createClass({
                     left={this.props.left} right={this.props.right}
                     onChange={this.handleCommitsChange} />
 
+      <AsyncDiffList issueData={this.props.issueData}
+                     left={this.props.left} right={this.props.right}
+                     key={this.props.left + "." + this.props.right} />
     </div>;
     // TODO difflist
     // TODO globalthreads

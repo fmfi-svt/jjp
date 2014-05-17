@@ -1,0 +1,114 @@
+jjp thread model design
+
+uz mam cca predstavu o modeloch vo vseobecnosti - budu proste mutable.
+
+co s konkretne jjp threadmi a draftami?
+ten model je trochu sprosty, lebo mas aj ulozene aj neulozene thready.
+
+navyse, idealne by sme eventualne chceli vobec nerenderovat diffsubory co sa
+nijako nezmenili. takze ak v Reply sufliku zmenim jednu textareu, ostatne
+diffsubory zostanu uplne untouched.
+
+tbh... aj kebyze mas immutable state, hento vyzera ze bude sproste.
+lebo to specifikuje jeden konkretny sposob ako ho ukladat. nie? (mozno nie.)
+
+
+
+THREAD LOCATIONS
+----------------
+
+assuming ze shouldComponentUpdate je vzdy true:
+
+GlobalModel (pracovny nazov...) obsahuje getLocations(hashleft, hashright)
+
+takze <LoadedDiff left=... right=... model=... /> proste v render() zavola
+model.getLocations(this.props.left, this.props.right) a vysledny objekt da
+ako prop kazdemu DiffFile-u.
+
+implementacia GlobalModel.getLocations interne pouziva cache zratanych odpovedi,
+ktora sa vzdy cela resetuje, ked pribudne/odbudne nejaky thread.
+vysledok funkcie je pole ThreadModelov, ktore ako vieme su mutable. tie iste
+ThreadModel objekty su pristupne aj cez GlobalModel.getAllThreads() (co sa
+pouzije v Reply sufliku).
+
+
+
+THREAD LOCATIONS, KEBY SME CHCELI EQUALITY-BASED shouldComponentUpdate
+----------------------------------------------------------------------
+
+to jest chceme aby shouldComponentUpdate proste bolo newProps !== this.props
+
+znova GlobalModel bude mat getLocations, ale chceme, aby ta fcia vratila nove
+pole <=> odpoved sa zmenila
+
+doable, but nasty.
+ked sme equality-based, kazdy model objekt chce mat _parent a _key.
+ale kedze zrazu mozu byt na viacerych miestach, treba viacere dvojice.
+takze ked spravis myDraft.set('body', 'Hello'),
+tak to nahradi stary draft novym aj v allThreads aj v konkretnom location poli.
+
+lenze zrazu znovu musis generovat nielen sucasny stav ale aj updaty.
+predstavme si ze by sa lokacia threadu mohla menit (aj ked teraz to nerobime).
+zmena lokacie znamena ze musis thread vyhodit zo stareho loc pola, pridat do
+noveho loc pola, a zmenit mu danu [_parent,_key] dvojicu na novu.
+blee.
+cela pointa reactu bola vyhnut sa updatom a popisovat len sucasny stav.
+v minulom rieseni pri getLocations sice treba rucne mazat cache (neidealne...)
+ale aspon nerobis taketo humusy.
+
+
+
+THREAD LOCATIONS, KEBY SME CHCELI TIMESTAMP-BASED shouldComponentUpdate
+-----------------------------------------------------------------------
+
+nejako zistime ako si komponent vie pri update zapamatat svoj timestamp.
+stavove updaty timestamp zvysuju.
+shouldComponentUpdate proste porovna ci je cas aktualny. nieco ala http.
+
+problem s tymto je asi ten ze set() ma updatnut timestamp mne aj vsetkym
+mojim ancestorom (aby aj koren vedel ze sa nieco zmenilo) takze zrazu aj tak
+musis updatovat parentov.
+
+
+
+STRICT TREE MODEL
+-----------------
+
+zmenme teda model.
+bude to cisty strom. thready budu v allThreads. getLocation vrati iba nejaky
+zoznam idciek. v tom zozname uz neni set().
+
+ked menim thread, volam na nom set() a on spravi dany update v ancestorovi atd.
+ked pridavam thread alebo presuvam thread alebo podobne - proste nieco co
+zmeni aj vysledok getLocationu - robim to priamo metodou v GlobalModeli.
+(zvonka sa to moze tvarit ako keby presuvanie threadu bola metoda v threade.)
+
+v tom pripade je zrazu vsetko jednoduche.
+GlobalModel, ci uz je mutable alebo immutable, ma metodu getLocations, ktora
+vracia cache, a ked to v cache neni, tak to dopocita.
+(tato mutabilita je povolena, lebo to vzdy vracia rovnaky vysledok.
+je to proste thunk.)
+ak som immutable, tak GlobalModel.set() funguje takto:
+- pri malej zmene (napr iba body) spravim novy GlobalModel s tou istou cache.
+- pri velkej zmene (zmenili sa nejake lokacie) zacnem znovu od prazdnej cache.
+
+
+
+REALISTICKEJSI shouldComponentUpdate
+------------------------------------
+
+vieme dosiahnut vhodny shouldComponentUpdate aj s mutable modelom?
+
+nateraz nas zaujima iba DiffContentTable, ten optimalizujeme najviac.
+plus mozno DiffContentTableCodeRow ak bude existovat.
+
+DiffContentTable.shouldComponentUpdate = function (...) {
+  var oldThreadLocations = zober z nejakeho ulozneho miesta;
+  var newThreadLocations = newProps.locations;
+  if (!deepEqual(oldThreadLocations, newThreadLocations)) return true;
+
+  var actualDrafts = to iste...
+}
+
+that works, i guess.
+teraz, kde ukladat immutable "currently rendered" data?
