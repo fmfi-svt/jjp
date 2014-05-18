@@ -9,10 +9,12 @@ from .utils import run_git, git_cat_file
 
 
 def url_hash(url):
+    '''Hash the URL. (The hash is used as an internal Git remote name.)'''
     return sha1(url).hexdigest()
 
 
 def fetch_remote(app, url):
+    '''Run "git fetch" to retrieve the branches from this remote URL.'''
     if url.startswith('-'):
         raise ValueError("URL starts with -")
     run_git(app, 'git', 'fetch', '--prune', url,
@@ -20,11 +22,13 @@ def fetch_remote(app, url):
 
 
 def get_hash(app, url, branch):
+    '''Return the current tip for the given branch.'''
     res = git_cat_file(app, 'refs/remotes/%s/%s' % (url_hash(url), branch))
     return res[0] if res else None
 
 
 def update_issue(app, issue):
+    '''Process the fetched commits and updates the issue if needed.'''
     new_upstream = get_hash(app, issue.upstream_url, issue.upstream_branch)
     new_topic = get_hash(app, issue.topic_url, issue.topic_branch)
     if (new_upstream == issue.upstream_latesthash and
@@ -45,6 +49,10 @@ def update_issue(app, issue):
 
 
 def do_cron(app, db):
+    '''Do everything that needs to be done periodically.
+
+    This is a helper function for `cron()` that uses the provided `db`.
+    '''
     issues = list(db.select(Issues, status=Issues.STATUS_OPEN))
     remotes = set(str(r) for i in issues for r in (i.upstream_url, i.topic_url))
 
@@ -86,6 +94,7 @@ def do_cron(app, db):
 
 
 def cron(app):
+    '''Do everything that needs to be done periodically. See `do_cron()`.'''
     with app.db_engine.begin() as conn:
         db = DbHelper(conn)
         do_cron(app, db)

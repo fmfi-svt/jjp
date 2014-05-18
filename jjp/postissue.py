@@ -13,6 +13,13 @@ class FakeIssue(object): pass
 
 
 def post_issue(request):
+    '''View for submitting a new issue.
+
+    The input is a JSON object with 'title', 'upstream_branch', 'upstream_url',
+    'topic_branch' and 'topic_url', which are used directly as model fields.
+
+    On success, the result is a JSON object with the issue ID in 'saved'.
+    '''
     # TODO: authenticate.
     # TODO: system message.
     # TODO: XSRF protection later

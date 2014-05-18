@@ -9,6 +9,7 @@ from . import intra_region_diff
 
 
 def diff_plain(request, a, b):
+    '''View for returning a plain unified diff.'''
     for hash in [a, b]:
         if not re.match(r'^[0-9a-fA-F]{40}$', hash):
             raise BadRequest()
@@ -20,6 +21,7 @@ def diff_plain(request, a, b):
 
 
 def normalize_ir(lines, line_blocks):
+    '''Does minor postprocessing on the intra-region diff.'''
     result = []
 
     for line, blocks in zip(lines, line_blocks):
@@ -41,6 +43,10 @@ def normalize_ir(lines, line_blocks):
 
 
 def get_file_diff(old_content, new_content):
+    '''Computes the diff between two files.
+
+    Returns the differences as a JSON-serializable array.
+    '''
     # TODO: handle when both sides are equal
     # TODO: show status (added/removed/...) and show "Empty" near empty diff
     old_lines = old_content.splitlines(True)
@@ -69,6 +75,7 @@ def get_file_diff(old_content, new_content):
 
 
 def diff_json(request, a, b):
+    '''View for returning a JSON-serialized word diff of two commits.'''
     for hash in [a, b]:
         if not re.match(r'^[0-9a-fA-F]{40}$', hash):
             raise BadRequest()

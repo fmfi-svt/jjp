@@ -8,6 +8,16 @@ from .utils import needbool, needdict, needint, needlist, needstr
 
 
 def post_message(request):
+    '''View for submitting a new message with comments.
+
+    The input is a JSON object with 'issue_id' and a 'comments' array. Each
+    comment must have 'body' and 'resolved'. When updating an existing thread,
+    the comment must have its 'id'. When creating a new inline thread, the
+    comment must have 'diff_from', 'diff_to', 'diff_side', 'file' and 'line'.
+    When creating a new global thread, the comment does not need anything else.
+
+    The result is an empty JSON object.
+    '''
     if not request.remote_user: raise Forbidden()
     # TODO: XSRF protection later
 

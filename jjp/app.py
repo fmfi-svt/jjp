@@ -11,6 +11,8 @@ from . import fetch, front, getdiff, getissue, login, message, models, postissue
 site_modules = [fetch, front, getdiff, getissue, login, message, models, postissue, serve]
 
 class JjpApp(object):
+    '''The main WSGI application class.'''
+
     def __init__(self, settings):
         self.settings = settings
 
@@ -28,6 +30,7 @@ class JjpApp(object):
         self.db_engine = settings.db_connect()
 
     def run_help(self, *args):
+        '''Shows the usage when console.py is ran with an unknown command.'''
         print 'usage:'
         for module in site_modules:
             if hasattr(module, 'commands'):
@@ -36,11 +39,13 @@ class JjpApp(object):
                         print command.help.replace('$0', sys.argv[0])
 
     def run_command(self, args):
+        '''Used by console.py to run the command given in `args`.'''
         command = args[0] if args else None
         handler = self.commands.get(command, self.run_help)
         return handler(self, *args[1:])
 
     def dispatch_request(self, request):
+        '''Processes the HTTP request and returns a werkzeug `Response`.'''
         try:
             endpoint, values = request.url_adapter.match()
             return endpoint(request, **values)
@@ -49,6 +54,10 @@ class JjpApp(object):
 
     @Request.application
     def wsgi_app(self, request):
+        '''Main WSGI entry point.
+
+        Connects to the database and calls `dispatch_request`.
+        '''
         request.app = self
 
         request.max_content_length = 16 * 1024 * 1024
@@ -64,11 +73,17 @@ class JjpApp(object):
         return response
 
     def wrap_static(self):
+        '''Adds a "/static" route for static files.
+
+        This should only be used for the development server. Production servers
+        should expose the /static directory directly.
+        '''
         self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
             '/static': os.path.join(os.path.dirname(__file__), 'static')
         })
 
     def wrap_dev_login(self):
+        '''Adds a passwordless login form for development.'''
         self.wsgi_app = login.wrap_dev_login(self.wsgi_app)
 
     def __call__(self, *args):

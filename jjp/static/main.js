@@ -5,14 +5,33 @@
 if (!window.JJP) JJP = {};
 
 
+/**
+ * The number of lines shown around every changed diff chunk.
+ */
 JJP.context = 3;   // TODO: configurable
 
 
+/**
+ * Translates the string.
+ *
+ * Currently a no-op, but this makes it easy to add translation support later.
+ */
 function t(str) {
   return str;
 }
 
 
+/**
+ * Helper function for creating elements.
+ *
+ * tagName can also contain classes, specified like CSS selectors: "div.c1.c2"
+ *
+ * tagName can be optionally followed by "attrs", a plain object used as the
+ * element's attribute list.
+ *
+ * The remaining arguments will be the element's children. Strings are turned
+ * into text nodes.
+ */
 function el(tagName, opt_attrs, opt_children) {
   var classes = tagName.split('.');
   tagName = classes.shift();
@@ -56,6 +75,9 @@ JJP.fakelink = function () {
 }
 
 
+/**
+ * Creates and returns a modal frame containing `child`.
+ */
 JJP.modal = function (child) {
   var $modal = el('div',
     el('div.modalback', { click: function () { $modal.hide(); } }),
@@ -65,11 +87,17 @@ JJP.modal = function (child) {
 }
 
 
+/**
+ * Renders a loading screen, used before the issue is loaded.
+ */
 JJP.renderLoading = function () {
   $("#jjp").empty().append(JJP.renderTop(), el('p', t("Loading...")));
 }
 
 
+/**
+ * Renders and returns the top header.
+ */
 JJP.renderTop = function () {
   return el('div.top',
     el('h1', t("JJP")),
@@ -82,6 +110,9 @@ JJP.renderTop = function () {
 }
 
 
+/**
+ * Collects the written comments and saves them on the server.
+ */
 JJP.reply = function () {
   var issueId = JJP.currentIssue.issue.id;
 
@@ -122,15 +153,20 @@ JJP.reply = function () {
 }
 
 
+/**
+ * Renders the issue loaded in `JJP.currentIssue`.
+ */
 JJP.renderIssue = function () {
   var issue = JJP.currentIssue.issue;
 
+  // The top header.
   var $jjp = $('#jjp');
   var $top;
   $jjp.empty().append($top = JJP.renderTop());
   $top.append(el('h2',
     el('a', { href: '#' + issue.id }, '#' + issue.id + ': ' + issue.title)));
 
+  // The metadata table.
   var statuses = [t('Open'), t('Submitted'), t('Abandoned')];
   $jjp.append(el('table.metadata',
     el('tr', el('th', t('Upstream branch:')),
@@ -140,6 +176,7 @@ JJP.renderIssue = function () {
     el('tr', el('th', t('Status:')),
              el('td', { 'class': 'status' + issue.status }, statuses[issue.status]))));
 
+  // The list of commits.
   var rows = {};
   var $commits;
   $jjp.append(el('form.commits',
@@ -183,6 +220,7 @@ JJP.renderIssue = function () {
     $(this).closest("pre").next().slideToggle("fast");
   }
 
+  // Add labels to the commit list.
   for (var i = 0; i < JJP.currentIssue.versions.length; i++) {
     var version = JJP.currentIssue.versions[i];
     addLabel(rows[version.base_hash], "v" + version.version_num + " base");
@@ -204,9 +242,11 @@ JJP.renderIssue = function () {
     }
   });
 
+  // The diff itself. (It's not loaded yet.)
   $jjp.append(el('div.difflist',
     el('div.loading', t("Loading..."))));
 
+  // The settings for filtering issue threads.
   var $allthreads;
   function settingsItem(name, value, label) {
     var checked = ((localStorage.getItem('jjp' + name) || '') == value);
@@ -236,15 +276,18 @@ JJP.renderIssue = function () {
       settingsItem('restype', 'nounresolved', t('Resolved'))));
   $settings.on('change', 'input:radio', settingsChange);
 
+  // The issue threads.
   $jjp.append($allthreads = el('div.allthreads',
     $settings,
     $.map(JJP.currentIssue.allThreads || [], JJP.renderThread)));
 
   settingsChange();
 
+  // The "new global thread" button.
   $jjp.append(el('p',
     el('button', { click: JJP.createGlobalThread }, t('New global thread'))));
 
+  // The "Reply" modal.
   if (JJP.username) {
     function showReplyModal() {
       $replymodal.show();
@@ -265,6 +308,7 @@ JJP.renderIssue = function () {
     $replymodal.find('.thread').eq(0).addClass('firstthread');
   }
 
+  // The "Timeline" modal.
   var $timeline;
   $jjp.append($timeline = JJP.modal(el('div.timeline',
     $.map(JJP.currentIssue.messages || [], JJP.renderTimelineMessage))));
@@ -274,6 +318,10 @@ JJP.renderIssue = function () {
 }
 
 
+/**
+ * Modifies the thread draft, saves it in localStorage and updates all places
+ * where it's shown.
+ */
 JJP.updateDraft = function (thread, draftBody, draftResolved) {
   var drafts = JJP.currentIssue.drafts;
   if (!drafts[thread.localId]) {
@@ -293,6 +341,9 @@ JJP.updateDraft = function (thread, draftBody, draftResolved) {
 }
 
 
+/**
+ * Cancels the thread draft.
+ */
 JJP.cancelDraft = function (thread) {
   var drafts = JJP.currentIssue.drafts;
   delete drafts[thread.localId];
@@ -305,9 +356,13 @@ JJP.cancelDraft = function (thread) {
 }
 
 
+/**
+ * Renders and returns a comment thread.
+ */
 JJP.renderThread = function (thread) {
   var $thread = el('div.thread').addClass('thread-' + thread.localId).data('thread', thread);
 
+  // The inline link.
   if (thread.file && thread.line && thread.diff_from && thread.diff_to) {
     $thread.append(el('div.where',
       JJP.fakelink().text(thread.file + ':' + thread.line).click(function () {
@@ -320,6 +375,7 @@ JJP.renderThread = function (thread) {
       })));
   }
 
+  // The saved comments.
   if (thread.comments) {
     var $comments;
     $thread.append($comments = el('dl'));
@@ -350,6 +406,7 @@ JJP.renderThread = function (thread) {
 
   var $textarea, $checkbox;
 
+  // The actions list.
   if (JJP.username) {
     $thread.append(el('div.actions',
       JJP.fakelink().text(t('Reply')).click(function () {
@@ -381,6 +438,7 @@ JJP.renderThread = function (thread) {
         $checkbox.is(':checked') ? !thread.resolved : thread.resolved);
   }
 
+  // The draft editor.
   var cid = JJP.makeCid();
   $thread.append(el('div.reply',
     el('div', $textarea = el('textarea', { rows: 5, val: draftBody }).on('input change', autosave)),
@@ -404,17 +462,26 @@ JJP.renderThread = function (thread) {
 }
 
 
+/**
+ * Generates a random ID. Used to link inputs and labels.
+ */
 JJP.makeCid = function () {
   return 'cid' + (''+Math.random()).replace(/\D/g, '');
 }
 
 
+/**
+ * Generates a local ID for a thread that isn't yet saved on the server.
+ */
 JJP.makeDraftId = function () {
   for (var i = 1; JJP.currentIssue.drafts['unsaved' + i]; i++) {}
   return 'unsaved' + i;
 }
 
 
+/**
+ * Creates a new global thread and starts editing it.
+ */
 JJP.createGlobalThread = function () {
   if (!JJP.username) {
     alert(t("Please log in to leave comments."));
@@ -432,6 +499,10 @@ JJP.createGlobalThread = function () {
 }
 
 
+/**
+ * Creates a new inline thread and starts editing it. `$tr` and `side` decide
+ * its location.
+ */
 JJP.createInlineThread = function ($tr, side) {
   if (!JJP.username) {
     alert(t("Please log in to leave comments."));
@@ -458,6 +529,9 @@ JJP.createInlineThread = function ($tr, side) {
 }
 
 
+/**
+ * Renders the diff table row that will contain comments.
+ */
 JJP.renderCommentRow = function (filename, leftLine, rightLine) {
   var $tr = el('tr.comments').data('me', [filename, leftLine, rightLine]);
   var lloc = filename + ":" + leftLine + ":0";
@@ -473,6 +547,9 @@ JJP.renderCommentRow = function (filename, leftLine, rightLine) {
 }
 
 
+/**
+ * Renders the diff table for one file.
+ */
 JJP.renderDiffContent = function (filename, diffdata) {
   var $table = el('table.difftable');
   var ln = { 'old': 0, 'new': 0 };
@@ -484,6 +561,7 @@ JJP.renderDiffContent = function (filename, diffdata) {
   });
 
   function processLine(tag, line) {
+    // Renders and returns two <td> for an added/removed line.
     if (line === undefined) {
       return el('td.ln.blank').add(el('td.c.blank'));
     }
@@ -495,6 +573,7 @@ JJP.renderDiffContent = function (filename, diffdata) {
         ir ? $.map(line, function (word, i) { return el(i % 2 ? 'span' : 'span.ch', word); }) : line)));
   }
   function equalLine(row) {
+    // Renders and returns a <tr> for an unchanged line.
     return el('tr.code.equal',
       el('td.ln', '\u00a0' + row[0] + '\u00a0'),
       el('td.c', row[2]),
@@ -503,16 +582,19 @@ JJP.renderDiffContent = function (filename, diffdata) {
     ).add(JJP.renderCommentRow(filename, row[0], row[1]));
   }
   function expanderClick() {
+    // Handles clicking an expander to show more hidden lines.
     var $expander = $(this).closest('.expander');
     var rows = $expander.data('hiddenRows');
     $expander.after($.map(rows, equalLine));
     $expander.remove();
   }
 
+  // Process all chunks of the diff.
   for (var ci = 0; ci < diffdata.length; ci++) {
     var chunk = diffdata[ci];
     var tag = chunk[0], oldLines = chunk[1], newLines = chunk[2];
     if (tag == 'equal') {
+      // Compute what lines are visible in the context diff.
       var isVisible = [];
       if (ci != 0) {
         for (var i = 0; i < JJP.context; i++) isVisible[i] = true;
@@ -527,6 +609,7 @@ JJP.renderDiffContent = function (filename, diffdata) {
         }
       }
 
+      // Render the visible lines, and replace hidden lines with expanders.
       var hidden = null;
       for (var i = 0; i < oldLines.length; i++) {
         ln['old']++;
@@ -550,6 +633,7 @@ JJP.renderDiffContent = function (filename, diffdata) {
         }
       }
     } else {
+      // Process the added/removed chunk.
       for (var i = 0; i < oldLines.length || i < newLines.length; i++) {
         var $tr;
         $table.append(el('tr.code',
@@ -564,6 +648,9 @@ JJP.renderDiffContent = function (filename, diffdata) {
 }
 
 
+/**
+ * Renders the whole diff (list of files) and places it in ".difflist".
+ */
 JJP.renderDiff = function () {
   var $difflist = $('.difflist');
   $difflist.empty();
@@ -588,6 +675,9 @@ JJP.renderDiff = function () {
 }
 
 
+/**
+ * Scrolls to a thread saved in `JJP.scrollTo` after clicking its "link".
+ */
 JJP.handleScrollTo = function () {
   if (JJP.scrollTo) {
     var $difflist = $('.difflist');
@@ -603,6 +693,9 @@ JJP.handleScrollTo = function () {
 }
 
 
+/**
+ * Renders a message in the Timeline modal, collapsing the comments properly.
+ */
 JJP.renderTimelineMessage = function (message) {
   var time = (new Date(message.timestamp * 1000)).toLocaleString();
   return el('div.message',
@@ -619,7 +712,11 @@ JJP.renderTimelineMessage = function (message) {
 }
 
 
+/**
+ * Renders the index page of JJP.
+ */
 JJP.renderIndex = function () {
+  // The "Open issue" form.
   function formSubmit() {
     var value = $(".issuenum").val();
     if (!value.match(/^\d+$/)) {
@@ -638,6 +735,7 @@ JJP.renderIndex = function () {
       ' ',
       $("<input type='submit' />").val(t("OK")))));
 
+  // Helper functions for the "new issue" form.
   function row(label, fieldName) {
     return el('tr',
       el('th', label),
@@ -671,6 +769,8 @@ JJP.renderIndex = function () {
     });
     return false;
   }
+
+  // The "new issue" form.
   $('#jjp').append(
     el('h3', t('Create new issue')),
     el('p',
@@ -695,6 +795,12 @@ JJP.renderIndex = function () {
 }
 
 
+/**
+ * Preprocesses the data returned by the server for viewing.
+ *
+ * Adds several fields to `JJP.currentIssue`, including `messagesById`,
+ * `threadsById` and `threadsByLocation`.
+ */
 JJP.makeIndexes = function () {
   var ci = JJP.currentIssue;
 
@@ -744,6 +850,11 @@ JJP.makeIndexes = function () {
 }
 
 
+/**
+ * Handles location change when moving to an issue page.
+ *
+ * Downloads the issue data and the diff from the server.
+ */
 JJP.goIssue = function (issueId, hashLeft, hashRight) {
   var wantPath = location.hash;
 
@@ -786,11 +897,17 @@ JJP.goIssue = function (issueId, hashLeft, hashRight) {
 }
 
 
+/**
+ * Handles location change when moving to the index page.
+ */
 JJP.goIndex = function () {
   JJP.renderIndex();
 }
 
 
+/**
+ * Handles location change when moving to an unknown page.
+ */
 JJP.go404 = function () {
   $("#jjp").empty().append(
     JJP.renderTop(),
@@ -799,6 +916,9 @@ JJP.go404 = function () {
 }
 
 
+/**
+ * Handles location change and decides what page we go to.
+ */
 JJP.go = function () {
   var path = location.hash.substring(1);
   if (path.match(/^\d+$/)) {
