@@ -241,3 +241,22 @@ pre, code {
   margin-bottom: 0.5em;
   font-weight: bold;
 }
+
+.allthreads .settings ul {
+  display: inline-block;
+  list-style-type: none;
+  margin: 0;
+  margin-left: 1em;
+  padding: 0.3em;
+  background: #EEFFEE;
+}
+.allthreads .settings li {
+  display: inline;
+}
+
+.allthreads.noglobal .thread.global,
+.allthreads.noinline .thread.inline,
+.allthreads.noresolved .thread.resolved,
+.allthreads.nounresolved .thread.unresolved {
+  display: none;
+}

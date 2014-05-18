@@ -203,8 +203,40 @@ JJP.renderIssue = function () {
   $jjp.append(el('div.difflist',
     el('div.loading', t("Loading..."))));
 
-  $jjp.append(el('div.allthreads',
+  var $allthreads;
+  function settingsItem(name, value, label) {
+    var checked = ((localStorage.getItem('jjp' + name) || '') == value);
+    var cid = JJP.makeCid();
+    return el('li',
+      $('<input type="radio" />').attr({ name: name, value: value, id: cid }).prop('checked', checked),
+      ' ', el('label', { 'for': cid }, label))
+  }
+  function settingsChange() {
+    var loctype = $settings.find('input[name=loctype]:checked').val() || '';
+    var restype = $settings.find('input[name=restype]:checked').val() || '';
+    $allthreads.removeClass('noglobal noinline noresolved nounresolved');
+    if (loctype) $allthreads.addClass(loctype);
+    if (restype) $allthreads.addClass(restype);
+    localStorage.setItem('jjploctype', loctype);
+    localStorage.setItem('jjprestype', restype);
+  }
+  var $settings = el('div.settings',
+    t('Filter threads:'),
+    el('ul',
+      settingsItem('loctype', '', t('All')),
+      settingsItem('loctype', 'noglobal', t('Inline')),
+      settingsItem('loctype', 'noinline', t('Global'))),
+    el('ul',
+      settingsItem('restype', '', t('All')),
+      settingsItem('restype', 'noresolved', t('Unresolved')),
+      settingsItem('restype', 'nounresolved', t('Resolved'))));
+  $settings.on('change', 'input:radio', settingsChange);
+
+  $jjp.append($allthreads = el('div.allthreads',
+    $settings,
     $.map(JJP.currentIssue.threads || [], JJP.renderThread)));
+
+  settingsChange();
 
   $jjp.append(el('p',
     el('button', { click: JJP.createGlobalThread }, t('New global thread'))));
@@ -302,7 +334,7 @@ JJP.renderThread = function (thread) {
         $checkbox.is(':checked') ? !thread.resolved : thread.resolved);
   }
 
-  var cid = 'cid' + (''+Math.random()).replace(/\D/g, '');
+  var cid = JJP.makeCid();
   $thread.append(el('div.reply',
     el('div', $textarea = el('textarea', { rows: 5, val: draftBody }).on('input change', autosave)),
     el('div',
@@ -322,6 +354,11 @@ JJP.renderThread = function (thread) {
   if (draft) $thread.addClass('draft');
 
   return $thread;
+}
+
+
+JJP.makeCid = function () {
+  return 'cid' + (''+Math.random()).replace(/\D/g, '');
 }
 
 
