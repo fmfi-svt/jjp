@@ -42,7 +42,7 @@ JJP.fakelink = function () {
   // event, and the HTML5 spec says elements with tabindex should do that too,
   // but they don't. <http://www.w3.org/TR/WCAG20-TECHS/SCR29> suggests this:
   if (!_fakelink_initialized) {
-    $(document).on('keyup', '.fakelink', function (event) {
+    $(document).on('keypress', '.fakelink', function (event) {
       if (event.which == 13) {
         $(this).click();
         return false;
@@ -79,9 +79,14 @@ JJP.reply = function () {
   var data = { issue_id: issueId, comments: [] };
 
   var drafts = JJP.currentIssue.drafts;
-  for (var id in drafts) {
-    var comment = $.extend({}, drafts[id]);
-    if (id < 0) delete comment['id'];
+  for (var localId in drafts) {
+    var comment = $.extend({}, drafts[localId]);
+    if (!comment.draftBody) continue;
+    comment.body = comment.draftBody;
+    comment.resolved = comment.draftResolved;
+    delete comment.localId;
+    delete comment.draftBody;
+    delete comment.draftResolved;
     data.comments.push(comment);
   }
 
@@ -206,11 +211,46 @@ JJP.renderIssue = function () {
 }
 
 
-JJP.renderThread = function (thread) {
-  var fresh = thread.fresh;
-  delete thread.fresh;
+JJP.updateDraft = function (thread, draftBody, draftResolved) {
+  var drafts = JJP.currentIssue.drafts;
+  if (!drafts[thread.localId]) {
+    drafts[thread.localId] = { id: thread.id };
+  }
+  drafts[thread.localId].draftBody = draftBody;
+  drafts[thread.localId].draftResolved = draftResolved;
+  $('.thread-' + thread.localId).each(function () {
+    var $thread = $(this);
+    $thread.find('.actions').hide();
+    $thread.find('.reply').show();
+    var $textarea = $thread.find('textarea');
+    var $checkbox = $thread.find(':checkbox');
+    if ($textarea.val() != draftBody) $textarea.val(draftBody);
+    $checkbox.prop('checked', draftResolved != thread.resolved);
+  });
+  localStorage.setItem("jjpdraft" + JJP.currentIssue.issue.id, JSON.stringify(drafts));
+}
 
-  var $thread = el('div.thread').data('thread', thread);
+
+JJP.cancelDraft = function (thread) {
+  var drafts = JJP.currentIssue.drafts;
+  delete drafts[thread.localId];
+  if (thread.id) {
+    $('.thread-' + thread.localId).each(function () {
+      var $thread = $(this);
+      $thread.find('.actions').show();
+      $thread.find('.reply').hide();
+      $thread.find('textarea').val('');
+      $thread.find(':checkbox').prop('checked', false);
+    });
+  } else {
+    $('.thread-' + thread.localId).remove();
+  }
+  localStorage.setItem("jjpdraft" + JJP.currentIssue.issue.id, JSON.stringify(drafts));
+}
+
+
+JJP.renderThread = function (thread) {
+  var $thread = el('div.thread').addClass('thread-' + thread.localId).data('thread', thread);
 
   if (thread.comments) {
     var $comments;
@@ -225,89 +265,66 @@ JJP.renderThread = function (thread) {
     }
   }
 
-  var originalResolved = thread.id >= 0 ? thread.resolved : false;
-  var drafts = JJP.currentIssue.drafts;
-  var draft = drafts[thread.id] || (thread.id >= 0 ? { id: thread.id, resolved: originalResolved, body: '' } : thread);
+  if (thread.resolved) $thread.addClass('resolved');
 
-  if (originalResolved) $thread.addClass('resolved');
+  var draft = JJP.currentIssue.drafts[thread.localId];
+  var draftBody = draft ? draft.draftBody : '';
+  var draftResolved = draft ? draft.draftResolved : thread.resolved;
 
   var $textarea, $checkbox;
 
-  function autosave() {
-    var content = $textarea.val();
-    var toggleResolved = $checkbox.is(':checked');
-    if (content || toggleResolved) {
-      if (!drafts[thread.id]) drafts[thread.id] = draft;
-      draft.body = content;
-      draft.resolved = (toggleResolved ? !originalResolved : originalResolved);
-    } else {
-      delete drafts[thread.id];
-    }
-    localStorage.setItem("jjpdraft" + JJP.currentIssue.issue.id, JSON.stringify(drafts));
+  if (JJP.username) {
+    $thread.append(el('div.actions',
+      JJP.fakelink().text(t('Reply')).click(function () {
+        JJP.updateDraft(thread, '', thread.resolved);
+        $textarea.focus();
+      }),
+      '\u00a0\u00a0\u00a0',
+      JJP.fakelink().text(t('Done')).click(function () {
+        JJP.updateDraft(thread, 'Done.', true);
+      }),
+      '\u00a0\u00a0\u00a0',
+      JJP.fakelink().text(t('Ack')).click(function () {
+        JJP.updateDraft(thread, 'Acknowledged.', thread.resolved);
+      })
+    ));
+  } else {
+    $thread.append(el('div.actions',
+      t('(Log in to leave comments.)')));
   }
 
-  $thread.append(el('div.actions',
-    JJP.fakelink().text(t('Reply')).click(function () {
-      $thread.find('.actions').hide();
-      $thread.find('.reply').show();
-      $textarea.focus();
-      autosave();
-    }),
-    '\u00a0\u00a0\u00a0',
-    JJP.fakelink().text(t('Done')).click(function () {
-      $thread.find('.actions').hide();
-      $thread.find('.reply').show();
-      $textarea.val(t('Done.'));
-      $checkbox[0].checked = !originalResolved;
-      autosave();
-    }),
-    '\u00a0\u00a0\u00a0',
-    JJP.fakelink().text(t('Ack')).click(function () {
-      $thread.find('.actions').hide();
-      $thread.find('.reply').show();
-      $textarea.val(t('Acknowledged.'));
-      autosave();
-    })
-  ));
+  function autosave() {
+    JJP.updateDraft(thread,
+        $textarea.val(),
+        $checkbox.is(':checked') ? !thread.resolved : thread.resolved);
+  }
 
   var cid = 'cid' + (''+Math.random()).replace(/\D/g, '');
   $thread.append(el('div.reply',
-    el('div', $textarea = el('textarea', { rows: 5, val: draft.body }).on('input change', autosave)),
+    el('div', $textarea = el('textarea', { rows: 5, val: draftBody }).on('input change', autosave)),
     el('div',
       $checkbox = $('<input type="checkbox"/>').attr('id', cid)
-        .attr('checked', Boolean(draft.resolved != originalResolved))
+        .attr('checked', Boolean(draftResolved != thread.resolved))
         .on('click keypress change', autosave),
       el('label', { 'for': cid },
-        !originalResolved ? t(' Mark as resolved (done)') : t(' Mark as unresolved (needs work)'))
+        thread.resolved ? t(' Mark as unresolved (needs work)') : t(' Mark as resolved (done)'))
     ),
     el('div',
       JJP.fakelink().text(t('Cancel')).click(function () {
-        $thread.find('.actions').show();
-        $thread.find('.reply').hide();
-        $textarea.val('');
-        $checkbox[0].checked = false;
-        autosave();
-        if (thread.id < 0) $thread.remove();
+        JJP.cancelDraft(thread);
       })
     )
   ));
-  $thread.find('.reply').hide();
 
-  if (fresh || draft.body || draft.resolved != originalResolved) {
-    $thread.find('.actions').hide();
-    $thread.find('.reply').show();
-  }
-  if (fresh) {
-    setTimeout(function () { $textarea.focus(); }, 1);
-  }
+  $thread.find(draft ? '.actions' : '.reply').hide();
 
   return $thread;
 }
 
 
 JJP.makeDraftId = function () {
-  for (var i = -1; JJP.currentIssue.drafts[i]; i--) {}
-  return i;
+  for (var i = 1; JJP.currentIssue.drafts['unsaved' + i]; i++) {}
+  return 'unsaved' + i;
 }
 
 
@@ -316,8 +333,14 @@ JJP.createGlobalThread = function () {
     alert(t("Please log in to leave comments."));
     return;
   }
-  var thread = { id: JJP.makeDraftId(), body: "", resolved: false, fresh: true };
-  $('.globalthreads').append(JJP.renderThread(thread));
+  var thread = { localId: JJP.makeDraftId(), resolved: false };
+  JJP.currentIssue.drafts[thread.localId] = thread;
+  JJP.updateDraft(thread, '', false);
+  var $thread = JJP.renderThread(thread).appendTo('.globalthreads');
+  setTimeout(function () {
+    window.scrollBy(0, 1000);
+    $thread.find('textarea').focus();
+  }, 1);
 }
 
 
@@ -330,17 +353,18 @@ JJP.createInlineThread = function ($tr, side) {
   var line = side ? me[2] : me[1];
   if (!line) return;
   var thread = {
-    id: JJP.makeDraftId(),
+    localId: JJP.makeDraftId(),
     diff_from: JJP.currentLeft,
     diff_to: JJP.currentRight,
     diff_side: side,
     file: me[0],
     line: line,
-    body: "",
-    resolved: false,
-    fresh: true
+    resolved: false
   };
-  $tr.find('td').eq(side).append(JJP.renderThread(thread));
+  JJP.currentIssue.drafts[thread.localId] = thread;
+  JJP.updateDraft(thread, '', false);
+  var $thread = JJP.renderThread(thread).appendTo($tr.find('td').eq(side));
+  setTimeout(function () { $thread.find('textarea').focus(); }, 1);
 }
 
 
@@ -550,6 +574,7 @@ JJP.makeIndexes = function () {
   ci.threadsById = {};
   for (var i = 0; i < ci.threads.length; i++) {
     var thread = ci.threads[i];
+    thread.localId = '' + thread.id;
     thread.comments = [];
     ci.threadsById[thread.id] = thread;
   }
@@ -562,9 +587,9 @@ JJP.makeIndexes = function () {
 
   var allThreads = ci.threads.slice();
   ci.drafts = JSON.parse(localStorage.getItem("jjpdraft" + ci.issue.id) || "{}");
-  for (var id in ci.drafts) {
-    if (id < 0) {
-      allThreads.push(ci.drafts[id]);
+  for (var localId in ci.drafts) {
+    if (!ci.drafts[localId].id) {
+      allThreads.push(ci.drafts[localId]);
     }
   }
 
