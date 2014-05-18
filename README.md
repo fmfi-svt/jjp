@@ -2,11 +2,12 @@
 JJP
 ---
 
-Quick start (assuming virtualenv and pip are installed):
+Quick start:
+
+Install Python 2 (with virtualenv and pip). Then run:
 
     virtualenv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
+    venv/bin/pip install -r requirements.txt
     git init --bare repo
-    ./console.py initschema
-    ./console.py serve --debug
+    venv/bin/python console.py initschema
+    venv/bin/python console.py serve --debug
