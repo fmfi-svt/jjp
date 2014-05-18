@@ -234,7 +234,7 @@ JJP.renderIssue = function () {
 
   $jjp.append($allthreads = el('div.allthreads',
     $settings,
-    $.map(JJP.currentIssue.threads || [], JJP.renderThread)));
+    $.map(JJP.currentIssue.allThreads || [], JJP.renderThread)));
 
   settingsChange();
 
@@ -277,8 +277,16 @@ JJP.cancelDraft = function (thread) {
 JJP.renderThread = function (thread) {
   var $thread = el('div.thread').addClass('thread-' + thread.localId).data('thread', thread);
 
-  if (thread.file && thread.line) {
-    $thread.append(el('div.where', thread.file + ':' + thread.line));
+  if (thread.file && thread.line && thread.diff_from && thread.diff_to) {
+    $thread.append(el('div.where',
+      JJP.fakelink().text(thread.file + ':' + thread.line).click(function () {
+        JJP.scrollTo = thread.localId;
+        if (JJP.currentLeft == thread.diff_from && JJP.currentRight == thread.diff_to && $('.difflist .file').length) {
+          JJP.handleScrollTo();
+        } else {
+          location.hash = '#' + JJP.currentIssue.issue.id + '/' + thread.diff_from + '/' + thread.diff_to;
+        }
+      })));
   }
 
   if (thread.comments) {
@@ -533,6 +541,21 @@ JJP.renderDiff = function () {
 }
 
 
+JJP.handleScrollTo = function () {
+  if (JJP.scrollTo) {
+    var $difflist = $('.difflist');
+    var $thread = $difflist.find('.thread-' + JJP.scrollTo);
+    delete JJP.scrollTo;
+
+    $thread.closest('.diff').show();
+    $(window).scrollTop($thread.offset().top - $('.top').height() - 100);
+    for (var i = 0; i < 6; i++) {
+      setTimeout(function () { $thread.toggleClass('highlight'); }, i*200 + 100);
+    }
+  }
+}
+
+
 JJP.renderIndex = function () {
   function formSubmit() {
     var value = $(".issuenum").val();
@@ -605,8 +628,6 @@ JJP.renderIndex = function () {
 JJP.makeIndexes = function () {
   var ci = JJP.currentIssue;
 
-  if (ci.messagesById) return;
-
   ci.messagesById = {};
   for (var i = 0; i < ci.messages.length; i++) {
     var message = ci.messages[i];
@@ -628,16 +649,17 @@ JJP.makeIndexes = function () {
     ci.threadsById[comment.thread_id].comments.push(comment);
   }
 
+  ci.allThreads = ci.threads.slice();
   ci.drafts = JSON.parse(localStorage.getItem("jjpdraft" + ci.issue.id) || "{}");
   for (var localId in ci.drafts) {
     if (!ci.drafts[localId].id) {
-      ci.threads.push(ci.drafts[localId]);
+      ci.allThreads.push(ci.drafts[localId]);
     }
   }
 
   ci.threadsByLocation = {};
-  for (var i = 0; i < ci.threads.length; i++) {
-    var thread = ci.threads[i], location = null;
+  for (var i = 0; i < ci.allThreads.length; i++) {
+    var thread = ci.allThreads[i], location = null;
     if (thread.diff_from || thread.diff_to) {
       if (thread.diff_from != JJP.currentLeft || thread.diff_to != JJP.currentRight) continue;
       location = thread.file + ":" + thread.line + ":" + thread.diff_side;
@@ -688,6 +710,7 @@ JJP.goIssue = function (issueId, hashLeft, hashRight) {
 
       JJP.currentDiff = diffData;
       JJP.renderDiff();
+      JJP.handleScrollTo();
     }
   }
 }

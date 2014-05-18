@@ -207,6 +207,9 @@ pre, code {
 .thread.resolved {
   background: #FFC;
 }
+.thread.highlight {
+  box-shadow: 0 0 0.8em #F00;
+}
 
 .thread .reply {
   display: none;
@@ -239,7 +242,6 @@ pre, code {
 .allthreads .thread .where {
   display: block;
   margin-bottom: 0.5em;
-  font-weight: bold;
 }
 
 .allthreads .settings ul {
