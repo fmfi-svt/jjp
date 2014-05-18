@@ -13,6 +13,28 @@ function t(str) {
 }
 
 
+function el(tagName, opt_attrs, opt_children) {
+  var classes = tagName.split('.');
+  tagName = classes.shift();
+
+  var children = Array.prototype.slice.call(arguments, 1);
+  var attrs = $.isPlainObject(children[0]) ? children.shift() : undefined;
+  var $element = $('<' + tagName + '/>', attrs);
+  for (var i = 0; i < classes.length; i++) {
+    $element.addClass(classes[i]);
+  }
+  for (var i = 0; i < children.length; i++) {
+    if (!children[i]) continue;
+    if (jQuery.type(children[i]) === 'string') {
+      $element.append(document.createTextNode(children[i]));
+    } else {
+      $element.append(children[i]);
+    }
+  }
+  return $element;
+}
+
+
 var _fakelink_initialized = false;
 JJP.fakelink = function () {
   // This creates a fake link that won't open in a new tab when middle-clicked.
@@ -30,29 +52,24 @@ JJP.fakelink = function () {
     _fakelink_initialized = true;
   }
 
-  return $('<span class="fakelink" tabindex="0" role="button"></span>');
+  return el('span.fakelink', { tabindex: 0, role: 'button' });
 }
 
 
 JJP.renderLoading = function () {
-  $("#jjp").empty().append(JJP.renderTop(), $("<p/>").text(t("Loading...")));
+  $("#jjp").empty().append(JJP.renderTop(), el('p', t("Loading...")));
 }
 
 
 JJP.renderTop = function () {
-  var $top = $("<div/>").addClass("top");
-  $top.append($("<h1/>").text(t("JJP")));
-  if (JJP.username) {
-    $top.append(
-      $("<span/>").addClass("login").text(JJP.username + " \u2014 ").append(
-        $("<a href='logout'></a>").text(t("Log out"))));
-  } else {
-    $top.append(
-      $("<span/>").addClass("login").append(
-        $("<a/>").attr("href", "login?to=" + encodeURIComponent(location.href))
-          .text(t("Log in"))));
-  }
-  return $top;
+  return el('div.top',
+    el('h1', t("JJP")),
+    JJP.username ?
+      el('span.login',
+        JJP.username + " \u2014 ",
+        el('a', { href: 'logout' }, t("Log out"))) :
+      el('span.login',
+        el('a', { href: 'login?to=' + encodeURIComponent(location.href) }, t("Log in"))));
 }
 
 
@@ -93,37 +110,35 @@ JJP.reply = function () {
 
 JJP.renderIssue = function () {
   var issue = JJP.currentIssue.issue;
-  $("#jjp").empty().append(JJP.renderTop());
-  $(".top").append($('<h2/>').append($('<a />')
-    .attr('href', '#' + issue.id)
-    .text('#' + issue.id + ': ' + issue.title)));
+
+  var $jjp = $('#jjp');
+  var $top;
+  $jjp.empty().append($top = JJP.renderTop());
+  $top.append(el('h2',
+    el('a', { href: '#' + issue.id }, '#' + issue.id + ': ' + issue.title)));
   if (JJP.username) {
-    $(".top").append($("<div/>").addClass("reply").append(
-      $("<button />").text(t("Send Comments")).click(JJP.reply)));
+    $top.append(el('div.reply',
+      el('button', { click: JJP.reply }, t("Send Comments"))));
   }
 
-  var $metadata = $('<table/>').addClass('metadata').appendTo('#jjp');
-  $metadata.append($('<tr/>').append(
-    $('<th/>').text(t('Upstream branch:')),
-    $('<td/>').text(issue.upstream_branch + t(' at ') + issue.upstream_url)
-  ));
-  $metadata.append($('<tr/>').append(
-    $('<th/>').text(t('Topic branch:')),
-    $('<td/>').text(issue.topic_branch + t(' at ') + issue.topic_url)
-  ));
   var statuses = [t('Open'), t('Submitted'), t('Abandoned')];
-  $metadata.append($('<tr/>').append(
-    $('<th/>').text(t('Status:')),
-    $('<td/>').addClass('status' + issue.status).text(statuses[issue.status])
-  ));
+  $jjp.append(el('table.metadata',
+    el('tr', el('th', t('Upstream branch:')),
+             el('td', issue.upstream_branch + t(' at' ) + issue.upstream_url)),
+    el('tr', el('th', t('Topic branch:')),
+             el('td', issue.topic_branch + t(' at '), issue.topic_url)),
+    el('tr', el('th', t('Status:')),
+             el('td', { 'class': 'status' + issue.status }, statuses[issue.status]))));
 
   var rows = {};
-  var $commits = $("<table/>").appendTo($("<form/>").addClass("commits").appendTo("#jjp"));
-  $commits.append($("<tr/>").append(
-    $("<th/>").text(t("L")),
-    $("<th/>").text(t("R")),
-    $("<th/>").text(t("Hash")),
-    $("<th/>")));
+  var $commits;
+  $jjp.append(el('form.commits',
+    $commits = el('table',
+      el('tr',
+        el('th', t('L')),
+        el('th', t('R')),
+        el('th', t('Hash')),
+        el('th')))));
   for (var i = 0; i < JJP.currentIssue.versions.length; i++) {
     var version = JJP.currentIssue.versions[i];
     addCommit(version.base_hash);
@@ -145,14 +160,13 @@ JJP.renderIssue = function () {
       }
     }
 
-    rows[hash] = $("<tr/>").appendTo($commits).append(
-      $("<td/>").addClass('narrow').append($("<input type='radio' />").attr({name: 'left', value: hash})),
-      $("<td/>").addClass('narrow').append($("<input type='radio' />").attr({name: 'right', value: hash})),
-      $("<td/>").addClass('narrow').append($("<abbr/>").text(hash.substring(0, 7)).attr('title', hash)),
-      $("<td/>").append(
-        $("<pre>").append(JJP.fakelink().text(body.split("\n")[0]).click(preClick)),
-        $("<pre>").addClass("details").hide().text(headers.join("\n") + "\n\n" + body))
-    );
+    $commits.append(rows[hash] = el('tr',
+      el('td.narrow', $("<input type='radio' />").attr({ name: 'left', value: hash })),
+      el('td.narrow', $("<input type='radio' />").attr({ name: 'right', value: hash })),
+      el('td.narrow', el('abbr', { title: hash }, hash.substring(0, 7))),
+      el('td',
+        el('pre', JJP.fakelink().click(preClick).text(body.split("\n")[0])),
+        el('pre.details', headers.join('\n') + '\n\n' + body).hide())));
     // TODO: highlight parents on hover.
   }
   function preClick() {
@@ -166,7 +180,7 @@ JJP.renderIssue = function () {
   }
   function addLabel($row, label) {
     $row.find('pre').eq(0).append(
-      "<span> </span>", $("<span>").addClass("label").text(label));
+      el('span', ' '), el('span.label', label));
   }
 
   rows[JJP.currentLeft].find('[name=left]').prop('checked', true);
@@ -181,16 +195,14 @@ JJP.renderIssue = function () {
     }
   });
 
-  $('#jjp').append($('<div>').addClass('difflist')
-    .append($('<div/>').addClass('loading').text(t("Loading..."))));
+  $jjp.append(el('div.difflist',
+    el('div.loading', t("Loading..."))));
 
-  var $globalthreads = $('<div>').addClass('globalthreads').appendTo('#jjp');
-  $globalthreads.append($.map(
-    JJP.currentIssue.threadsByLocation['global'] || [], JJP.renderThread));
+  $jjp.append(el('div.globalthreads',
+    $.map(JJP.currentIssue.threadsByLocation['global'] || [], JJP.renderThread)));
 
-  $('#jjp').append($('<p/>').append($('<button/>').text(t('New global thread')).click(function () {
-    JJP.createGlobalThread();
-  })));
+  $jjp.append(el('p',
+    el('button', { click: JJP.createGlobalThread }, t('New global thread'))));
 }
 
 
@@ -198,16 +210,18 @@ JJP.renderThread = function (thread) {
   var fresh = thread.fresh;
   delete thread.fresh;
 
-  var $thread = $('<div/>').addClass('thread').data('thread', thread);
+  var $thread = el('div.thread').data('thread', thread);
 
   if (thread.comments) {
-    var $comments = $('<dl/>').appendTo($thread);
+    var $comments;
+    $thread.append($comments = el('dl'));
     for (var i = 0; i < thread.comments.length; i++) {
       var comment = thread.comments[i];
       var message = JJP.currentIssue.messagesById[comment.message_id];
       var time = (new Date(message.timestamp * 1000)).toLocaleString()
-      $comments.append($('<dt/>').text(message.username + ' (' + time + ')'));
-      $comments.append($('<dd/>').text(comment.body));
+      $comments.append(
+        el('dt', message.username + ' (' + time + ')'),
+        el('dd', comment.body));
     }
   }
 
@@ -232,14 +246,14 @@ JJP.renderThread = function (thread) {
     localStorage.setItem("jjpdraft" + JJP.currentIssue.issue.id, JSON.stringify(drafts));
   }
 
-  $thread.append($('<div/>').addClass('actions').append(
+  $thread.append(el('div.actions',
     JJP.fakelink().text(t('Reply')).click(function () {
       $thread.find('.actions').hide();
       $thread.find('.reply').show();
       $textarea.focus();
       autosave();
     }),
-    '<span>&nbsp;&nbsp;&nbsp;</span>',
+    '\u00a0\u00a0\u00a0',
     JJP.fakelink().text(t('Done')).click(function () {
       $thread.find('.actions').hide();
       $thread.find('.reply').show();
@@ -247,7 +261,7 @@ JJP.renderThread = function (thread) {
       $checkbox[0].checked = !originalResolved;
       autosave();
     }),
-    '<span>&nbsp;&nbsp;&nbsp;</span>',
+    '\u00a0\u00a0\u00a0',
     JJP.fakelink().text(t('Ack')).click(function () {
       $thread.find('.actions').hide();
       $thread.find('.reply').show();
@@ -257,16 +271,16 @@ JJP.renderThread = function (thread) {
   ));
 
   var cid = 'cid' + (''+Math.random()).replace(/\D/g, '');
-  $thread.append($('<div/>').addClass('reply').hide().append(
-    $('<div/>').append($textarea = $('<textarea/>').attr('rows', 5).val(draft.body).on('input change', autosave)),
-    $('<div/>').append(
+  $thread.append(el('div.reply',
+    el('div', $textarea = el('textarea', { rows: 5, val: draft.body }).on('input change', autosave)),
+    el('div',
       $checkbox = $('<input type="checkbox"/>').attr('id', cid)
         .attr('checked', Boolean(draft.resolved != originalResolved))
         .on('click keypress change', autosave),
-      $('<label/>').attr('for', cid).text(
+      el('label', { 'for': cid },
         !originalResolved ? t(' Mark as resolved (done)') : t(' Mark as unresolved (needs work)'))
     ),
-    $('<div/>').append(
+    el('div',
       JJP.fakelink().text(t('Cancel')).click(function () {
         $thread.find('.actions').show();
         $thread.find('.reply').hide();
@@ -277,6 +291,7 @@ JJP.renderThread = function (thread) {
       })
     )
   ));
+  $thread.find('.reply').hide();
 
   if (fresh || draft.body || draft.resolved != originalResolved) {
     $thread.find('.actions').hide();
@@ -330,7 +345,7 @@ JJP.createInlineThread = function ($tr, side) {
 
 
 JJP.renderCommentRow = function (filename, leftLine, rightLine) {
-  var $tr = $('<tr/>').addClass('comments').data('me', [filename, leftLine, rightLine]);
+  var $tr = el('tr.comments').data('me', [filename, leftLine, rightLine]);
   var lloc = filename + ":" + leftLine + ":0";
   var rloc = filename + ":" + rightLine + ":1";
   var lthreads = JJP.currentIssue.threadsByLocation[lloc];
@@ -339,14 +354,14 @@ JJP.renderCommentRow = function (filename, leftLine, rightLine) {
   var $left = $.map(lthreads || [], JJP.renderThread);
   var $right = $.map(rthreads || [], JJP.renderThread);
   // TODO: Find out if this is faster: if ($left.length || $right.length) {
-  $tr.append($('<td/>').addClass('comments').attr('colspan', '2').append($left),
-             $('<td/>').addClass('comments').attr('colspan', '2').append($right));
+  $tr.append(el('td.comments', { 'colspan': '2' }, $left),
+             el('td.comments', { 'colspan': '2' }, $right));
   return $tr;
 }
 
 
 JJP.renderDiffContent = function (filename, diffdata) {
-  var $table = $('<table/>').addClass('difftable');
+  var $table = el('table.difftable');
   var ln = { 'old': 0, 'new': 0 };
 
   $table.on('dblclick', '.c', function (event) {
@@ -355,29 +370,23 @@ JJP.renderDiffContent = function (filename, diffdata) {
     return false;
   });
 
-  function processLine($tr, tag, line) {
+  function processLine(tag, line) {
     if (line === undefined) {
-      $tr.append($('<td/>').addClass('ln blank'), $('<td/>').addClass('c blank'));
-      return;
+      return el('td.ln.blank').add(el('td.c.blank'));
     }
     ln[tag]++;
     var ir = $.isArray(line);
-    $tr.append($('<td/>').addClass('ln ' + tag + (ir ? '' : ' ch')).text('\u00a0' + ln[tag] + '\u00a0'));
-    var $td = $('<td/>').addClass('c ' + tag + (ir ? '' : ' ch')).appendTo($tr);
-    if (ir) {
-      for (var i = 0; i < line.length; i++) {
-        $td.append(i % 2 ? document.createTextNode(line[i]) : $('<span/>').addClass('ch').text(line[i]));
-      }
-    } else {
-      $td.text(line);
-    }
+    return (
+      el('td', { 'class': 'ln ' + tag + (ir ? '' : ' ch') }, '\u00a0' + ln[tag] + '\u00a0').add(
+      el('td', { 'class': 'c ' + tag + (ir ? '' : ' ch') },
+        ir ? $.map(line, function (word, i) { return el(i % 2 ? 'span' : 'span.ch', word); }) : line)));
   }
   function equalLine(row) {
-    return $('<tr/>').addClass('code equal').append(
-      $('<td/>').addClass('ln').text('\u00a0' + row[0] + '\u00a0'),
-      $('<td/>').addClass('c').text(row[2]),
-      $('<td/>').addClass('ln').text('\u00a0' + row[1] + '\u00a0'),
-      $('<td/>').addClass('c').text(row[2])
+    return el('tr.code.equal',
+      el('td.ln', '\u00a0' + row[0] + '\u00a0'),
+      el('td.c', row[2]),
+      el('td.ln', '\u00a0' + row[1] + '\u00a0'),
+      el('td.c', row[2])
     ).add(JJP.renderCommentRow(filename, row[0], row[1]));
   }
   function expanderClick() {
@@ -414,18 +423,18 @@ JJP.renderDiffContent = function (filename, diffdata) {
         if (isVisible[i]) {
           $table.append(equalLine([ln['old'], ln['new'], oldLines[i]]));
         } else if (!expander) {
-          expander = $('<tr/>').appendTo($table).addClass('expander').
-            data('hiddenRows', hidden).append(
-              $('<td/>').attr('colspan', 4)
-              .text(t('{num} matching lines \u2014 ').replace('{num}', hidden.length))
-              .append(JJP.fakelink().text(t('Expand all')).click(expanderClick)));
+          $table.append(expander = el('tr.expander', { data: { hiddenRows: hidden } },
+            el('td', { colspan: 4 },
+              t('{num} matching lines \u2014 ').replace('{num}', hidden.length),
+              JJP.fakelink().text(t('Expand all')).click(expanderClick))));
         }
       }
     } else {
       for (var i = 0; i < oldLines.length || i < newLines.length; i++) {
-        var $tr = $('<tr/>').addClass('code').appendTo($table);
-        processLine($tr, 'old', oldLines[i]);
-        processLine($tr, 'new', newLines[i]);
+        var $tr;
+        $table.append(el('tr.code',
+          processLine('old', oldLines[i]),
+          processLine('new', newLines[i])));
         $table.append(JJP.renderCommentRow(filename,
           oldLines[i] ? ln['old'] : null, newLines[i] ? ln['new'] : null));
       }
@@ -442,15 +451,15 @@ JJP.renderDiff = function () {
     var row = JJP.currentDiff[i];
     var srcfilename = row[0], dstfilename = row[1], srcmode = row[2], dstmode = row[3], status = row[4], diffdata = row[5];
     var text = (srcfilename ? srcfilename + " \u2192 " : "") + dstfilename;
-    $difflist.append($("<div/>").addClass('file').click(clickFile).append(
-      $('<code/>').addClass("status " + status.substring(0, 1)).text(status.substring(0, 1)),
-      srcfilename ? $("<code/>").addClass("name").text(srcfilename) : "",
-      srcfilename ? $("<span/>").text(" \u2192 ") : "",
-      $("<code/>").addClass("name").text(dstfilename),
+    $difflist.append(el('div.file', { click: clickFile },
+      el('code', { 'class': "status " + status.substring(0, 1) }, status.substring(0, 1)),
+      srcfilename ? el('code.name', srcfilename) : null,
+      srcfilename ? " \u2192 " : null,
+      el('code.name', dstfilename),
       srcmode != dstmode && status != "A" && status != "D" ?
-        $("<code/>").addClass("status").text(srcmode + " \u2192 " + dstmode) : ""
+        el('code.status', srcmode + " \u2192 " + dstmode) : null
     ));
-    $difflist.append($("<div/>").addClass('diff').hide().append(JJP.renderDiffContent(dstfilename, diffdata)));
+    $difflist.append(el('div.diff', JJP.renderDiffContent(dstfilename, diffdata)).hide());
   }
 
   function clickFile() {
@@ -461,7 +470,7 @@ JJP.renderDiff = function () {
 
 JJP.renderIndex = function () {
   function formSubmit() {
-    var value = $("#issuenum").val();
+    var value = $(".issuenum").val();
     if (!value.match(/^\d+$/)) {
       alert(t("Not a number!"));
       return false;
@@ -471,20 +480,17 @@ JJP.renderIndex = function () {
   }
   $("#jjp").empty().append(
     JJP.renderTop(),
-    $('<h3/>').text(t('Open issue')),
-    $("<form/>").submit(formSubmit).append(
-      $("<p/>")
-        .text(t("Open issue # "))
-        .append($("<input type='text' size='5' id='issuenum' />"))
-        .append("<span> </span>")
-        .append($("<input type='submit' />").val(t("OK")))
-    )
-  );
+    el('h3', t('Open issue')),
+    el('form', { submit: formSubmit }, el('p',
+      t('Open issue # '),
+      $("<input type='text' size='5' class='issuenum' />"),
+      ' ',
+      $("<input type='submit' />").val(t("OK")))));
 
   function row(label, fieldName) {
-    return $("<tr/>").append(
-      $("<th/>").text(label),
-      $("<td/>").append($("<input type='text'/>").attr("name", fieldName)));
+    return el('tr',
+      el('th', label),
+      el('td', $("<input type='text'/>").attr("name", fieldName)));
   }
   function createIssue() {
     var $form = $(this);
@@ -515,16 +521,16 @@ JJP.renderIndex = function () {
     return false;
   }
   $('#jjp').append(
-    $('<h3/>').text(t('Create new issue')),
-    !JJP.username ? $('<p/>').text(t('Log in to create a new issue.')) :
-    $('<form/>').submit(createIssue).append(
-      $("<table/>").addClass('metadata').append(
+    el('h3', t('Create new issue')),
+    !JJP.username ? el('p', t('Log in to create a new issue.')) :
+    el('form', { submit: createIssue },
+      el('table.metadata',
         row(t("Title:"), "title"),
         row(t("Upstream URL:"), "upstream_url"),
         row(t("Upstream branch:"), "upstream_branch"),
         row(t("Topic URL:"), "topic_url"),
         row(t("Topic branch:"), "topic_branch"),
-        $("<tr/>").append($("<th/>"), $("<td/>").append(
+        el('tr', el('th'), el('td',
           $("<input type='submit'>").val(t("Create")))))
     )
   );
@@ -628,7 +634,7 @@ JJP.goIndex = function () {
 JJP.go404 = function () {
   $("#jjp").empty().append(
     JJP.renderTop(),
-    $("<p/>").text(t("URL not found"))
+    el('p', t("URL not found"))
   );
 }
 
