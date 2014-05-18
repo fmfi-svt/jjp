@@ -208,6 +208,16 @@ pre, code {
   background: #FFC;
 }
 
+.thread .reply {
+  display: none;
+}
+.thread.draft .actions {
+  display: none;
+}
+.thread.draft .reply {
+  display: block;
+}
+
 .thread textarea {
   box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -221,4 +231,13 @@ pre, code {
 }
 .thread dd {
   padding-bottom: 0.3em;
+}
+
+.thread .where {
+  display: none;
+}
+.allthreads .thread .where {
+  display: block;
+  margin-bottom: 0.5em;
+  font-weight: bold;
 }

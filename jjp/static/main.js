@@ -203,8 +203,8 @@ JJP.renderIssue = function () {
   $jjp.append(el('div.difflist',
     el('div.loading', t("Loading..."))));
 
-  $jjp.append(el('div.globalthreads',
-    $.map(JJP.currentIssue.threadsByLocation['global'] || [], JJP.renderThread)));
+  $jjp.append(el('div.allthreads',
+    $.map(JJP.currentIssue.threads || [], JJP.renderThread)));
 
   $jjp.append(el('p',
     el('button', { click: JJP.createGlobalThread }, t('New global thread'))));
@@ -220,8 +220,7 @@ JJP.updateDraft = function (thread, draftBody, draftResolved) {
   drafts[thread.localId].draftResolved = draftResolved;
   $('.thread-' + thread.localId).each(function () {
     var $thread = $(this);
-    $thread.find('.actions').hide();
-    $thread.find('.reply').show();
+    $thread.addClass('draft');
     var $textarea = $thread.find('textarea');
     var $checkbox = $thread.find(':checkbox');
     if ($textarea.val() != draftBody) $textarea.val(draftBody);
@@ -235,13 +234,7 @@ JJP.cancelDraft = function (thread) {
   var drafts = JJP.currentIssue.drafts;
   delete drafts[thread.localId];
   if (thread.id) {
-    $('.thread-' + thread.localId).each(function () {
-      var $thread = $(this);
-      $thread.find('.actions').show();
-      $thread.find('.reply').hide();
-      $thread.find('textarea').val('');
-      $thread.find(':checkbox').prop('checked', false);
-    });
+    $('.thread-' + thread.localId).removeClass('draft');
   } else {
     $('.thread-' + thread.localId).remove();
   }
@@ -251,6 +244,10 @@ JJP.cancelDraft = function (thread) {
 
 JJP.renderThread = function (thread) {
   var $thread = el('div.thread').addClass('thread-' + thread.localId).data('thread', thread);
+
+  if (thread.file && thread.line) {
+    $thread.append(el('div.where', thread.file + ':' + thread.line));
+  }
 
   if (thread.comments) {
     var $comments;
@@ -265,7 +262,8 @@ JJP.renderThread = function (thread) {
     }
   }
 
-  if (thread.resolved) $thread.addClass('resolved');
+  $thread.addClass(thread.resolved ? 'resolved' : 'unresolved');
+  $thread.addClass(thread.diff_from || thread.diff_to ? 'inline' : 'global');
 
   var draft = JJP.currentIssue.drafts[thread.localId];
   var draftBody = draft ? draft.draftBody : '';
@@ -280,9 +278,14 @@ JJP.renderThread = function (thread) {
         $textarea.focus();
       }),
       '\u00a0\u00a0\u00a0',
-      JJP.fakelink().text(t('Done')).click(function () {
-        JJP.updateDraft(thread, 'Done.', true);
-      }),
+      thread.resolved ?
+        JJP.fakelink().text(t('Reopen')).click(function () {
+          JJP.updateDraft(thread, '', false);
+          $textarea.focus();
+        }) :
+        JJP.fakelink().text(t('Done')).click(function () {
+          JJP.updateDraft(thread, 'Done.', true);
+        }),
       '\u00a0\u00a0\u00a0',
       JJP.fakelink().text(t('Ack')).click(function () {
         JJP.updateDraft(thread, 'Acknowledged.', thread.resolved);
@@ -316,7 +319,7 @@ JJP.renderThread = function (thread) {
     )
   ));
 
-  $thread.find(draft ? '.actions' : '.reply').hide();
+  if (draft) $thread.addClass('draft');
 
   return $thread;
 }
@@ -336,7 +339,7 @@ JJP.createGlobalThread = function () {
   var thread = { localId: JJP.makeDraftId(), resolved: false };
   JJP.currentIssue.drafts[thread.localId] = thread;
   JJP.updateDraft(thread, '', false);
-  var $thread = JJP.renderThread(thread).appendTo('.globalthreads');
+  var $thread = JJP.renderThread(thread).appendTo('.allthreads');
   setTimeout(function () {
     window.scrollBy(0, 1000);
     $thread.find('textarea').focus();
@@ -365,6 +368,7 @@ JJP.createInlineThread = function ($tr, side) {
   JJP.updateDraft(thread, '', false);
   var $thread = JJP.renderThread(thread).appendTo($tr.find('td').eq(side));
   setTimeout(function () { $thread.find('textarea').focus(); }, 1);
+  JJP.renderThread(thread).appendTo('.allthreads');
 }
 
 
@@ -564,6 +568,8 @@ JJP.renderIndex = function () {
 JJP.makeIndexes = function () {
   var ci = JJP.currentIssue;
 
+  if (ci.messagesById) return;
+
   ci.messagesById = {};
   for (var i = 0; i < ci.messages.length; i++) {
     var message = ci.messages[i];
@@ -585,17 +591,16 @@ JJP.makeIndexes = function () {
     ci.threadsById[comment.thread_id].comments.push(comment);
   }
 
-  var allThreads = ci.threads.slice();
   ci.drafts = JSON.parse(localStorage.getItem("jjpdraft" + ci.issue.id) || "{}");
   for (var localId in ci.drafts) {
     if (!ci.drafts[localId].id) {
-      allThreads.push(ci.drafts[localId]);
+      ci.threads.push(ci.drafts[localId]);
     }
   }
 
   ci.threadsByLocation = {};
-  for (var i = 0; i < allThreads.length; i++) {
-    var thread = allThreads[i], location = null;
+  for (var i = 0; i < ci.threads.length; i++) {
+    var thread = ci.threads[i], location = null;
     if (thread.diff_from || thread.diff_to) {
       if (thread.diff_from != JJP.currentLeft || thread.diff_to != JJP.currentRight) continue;
       location = thread.file + ":" + thread.line + ":" + thread.diff_side;
