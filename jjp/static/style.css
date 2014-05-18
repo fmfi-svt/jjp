@@ -1,8 +1,16 @@
 
+html {
+  overflow-y: scroll;
+}
+
+html, body {
+  position: relative;
+  height: 100%;
+}
+
 body {
   font: 10pt Arial, sans-serif;
   margin: 3.5em 0.7em 4em 0.7em;
-  overflow-y: scroll;
 }
 
 a, .fakelink {
@@ -70,14 +78,52 @@ pre, code {
   color: #007;
 }
 
-.top .reply {
+.topbutton {
   display: inline-block;
   vertical-align: 25%;
+  padding-right: 0.5em;
 }
 
 .top .login {
   float: right;
   padding: .5em;
+}
+
+/* MODAL **********************************************************************/
+
+.modalback {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 998;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modalcontent {
+  position: fixed;
+  left: 5em;
+  right: 5em;
+  top: 5em;
+  bottom: 5em;
+  z-index: 999;
+  background: white;
+  overflow-x: auto;
+  overflow-y: scroll;
+}
+
+.timeline {
+  margin: 2em;
+}
+
+.timeline .message {
+  border: solid #888 2px;
+  margin-bottom: 1em;
+}
+
+.timeline .message h3 {
+  margin: 0.5em 1em 0;
 }
 
 /* METADATA *******************************************************************/
@@ -248,7 +294,7 @@ pre, code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #555;
+  color: #888;
 }
 .thread .author code {
   color: black;

@@ -56,6 +56,15 @@ JJP.fakelink = function () {
 }
 
 
+JJP.modal = function (child) {
+  var $modal = el('div',
+    el('div.modalback', { click: function () { $modal.hide(); } }),
+    el('div.modalcontent', child));
+  $modal.hide();
+  return $modal;
+}
+
+
 JJP.renderLoading = function () {
   $("#jjp").empty().append(JJP.renderTop(), el('p', t("Loading...")));
 }
@@ -122,7 +131,7 @@ JJP.renderIssue = function () {
   $top.append(el('h2',
     el('a', { href: '#' + issue.id }, '#' + issue.id + ': ' + issue.title)));
   if (JJP.username) {
-    $top.append(el('div.reply',
+    $top.append(el('div.topbutton',
       el('button', { click: JJP.reply }, t("Send Comments"))));
   }
 
@@ -240,6 +249,13 @@ JJP.renderIssue = function () {
 
   $jjp.append(el('p',
     el('button', { click: JJP.createGlobalThread }, t('New global thread'))));
+
+  var $timeline;
+  $jjp.append($timeline = JJP.modal(el('div.timeline',
+    $.map(JJP.currentIssue.messages || [], JJP.renderTimelineMessage))));
+  $top.append(el('div.topbutton',
+    el('button', { click: function () { $timeline.show(); } },
+      t("Show Timeline"))));
 }
 
 
@@ -295,10 +311,12 @@ JJP.renderThread = function (thread) {
     for (var i = 0; i < thread.comments.length; i++) {
       var comment = thread.comments[i];
       var message = JJP.currentIssue.messagesById[comment.message_id];
-      var time = (new Date(message.timestamp * 1000)).toLocaleString()
+      var time = (new Date(message.timestamp * 1000)).toLocaleString();
       $comments.append(
-        el('dt', el('strong.author', el('code', '\u25bc'), ' ', message.username, ' '), '(' + time + ')'),
-        el('dd', el('strong.author', el('code', '\u25b6'), ' ', message.username, ' '), comment.body));
+        el('dt', { 'class': 'comment-' + message.id },
+          el('strong.author', el('code', '\u25bc'), ' ', message.username, ' '), '(' + time + ')'),
+        el('dd', { 'class': 'comment-' + message.id },
+          el('strong.author', el('code', '\u25b6'), ' ', message.username, ' '), comment.body));
     }
     $comments.on('click', 'dt', function () {
       $(this).next('dd').andSelf().addClass('collapsed');
@@ -565,6 +583,22 @@ JJP.handleScrollTo = function () {
     for (var i = 0; i < 6; i++) {
       setTimeout(function () { $thread.toggleClass('highlight'); }, i*200 + 100);
     }
+  }
+}
+
+
+JJP.renderTimelineMessage = function (message) {
+  var time = (new Date(message.timestamp * 1000)).toLocaleString();
+  return el('div.message',
+    el('h3', message.username + ' (' + time + ')'),
+    $.map(message.comments, renderComment));
+
+  function renderComment(comment) {
+    var thread = JJP.currentIssue.threadsById[comment.thread_id];
+    var $thread = JJP.renderThread(thread);
+    $thread.find('dt, dd').addClass('collapsed');
+    $thread.find('.comment-' + message.id).removeClass('collapsed');
+    return $thread;
   }
 }
 
