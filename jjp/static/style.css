@@ -1,7 +1,7 @@
 
 body {
   font: 10pt Arial, sans-serif;
-  margin: 3.5em 0.7em 0.7em 0.7em;
+  margin: 3.5em 0.7em 4em 0.7em;
   overflow-y: scroll;
 }
 
@@ -234,6 +234,30 @@ pre, code {
 }
 .thread dd {
   padding-bottom: 0.3em;
+}
+
+.thread dt.collapsed {
+  display: none;
+}
+.thread dt, .thread dd.collapsed {
+  cursor: pointer;
+}
+.thread dd.collapsed {
+  margin-left: 0;
+  padding-left: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #555;
+}
+.thread .author code {
+  color: black;
+}
+.thread dd .author {
+  display: none;
+}
+.thread dd.collapsed .author {
+  display: inline;
 }
 
 .thread .where {

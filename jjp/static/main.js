@@ -129,7 +129,7 @@ JJP.renderIssue = function () {
   var statuses = [t('Open'), t('Submitted'), t('Abandoned')];
   $jjp.append(el('table.metadata',
     el('tr', el('th', t('Upstream branch:')),
-             el('td', issue.upstream_branch + t(' at' ) + issue.upstream_url)),
+             el('td', issue.upstream_branch + t(' at ') + issue.upstream_url)),
     el('tr', el('th', t('Topic branch:')),
              el('td', issue.topic_branch + t(' at '), issue.topic_url)),
     el('tr', el('th', t('Status:')),
@@ -297,9 +297,15 @@ JJP.renderThread = function (thread) {
       var message = JJP.currentIssue.messagesById[comment.message_id];
       var time = (new Date(message.timestamp * 1000)).toLocaleString()
       $comments.append(
-        el('dt', message.username + ' (' + time + ')'),
-        el('dd', comment.body));
+        el('dt', el('strong.author', el('code', '\u25bc'), ' ', message.username, ' '), '(' + time + ')'),
+        el('dd', el('strong.author', el('code', '\u25b6'), ' ', message.username, ' '), comment.body));
     }
+    $comments.on('click', 'dt', function () {
+      $(this).next('dd').andSelf().addClass('collapsed');
+    });
+    $comments.on('click', 'dd.collapsed', function () {
+      $(this).prev('dt').andSelf().removeClass('collapsed');
+    });
   }
 
   $thread.addClass(thread.resolved ? 'resolved' : 'unresolved');
