@@ -480,26 +480,33 @@ JJP.renderDiffContent = function (filename, diffdata) {
       if (ci != diffdata.length - 1) {
         for (var i = 0; i < JJP.context; i++) isVisible[oldLines.length - 1 - i] = true;
       }
-      var hidden = [];
-      for (var i = 0; i < oldLines.length; i++) if (!isVisible[i]) {
-        hidden.push([ln['old']+1+i, ln['new']+1+i, oldLines[i]]);
-      }
-      if (hidden.length == 1) {
-        hidden = [];
-        for (var i = 0; i < oldLines.length; i++) isVisible[i] = true;
+      for (var i = 0; i < oldLines.length; i++) {
+        if (JJP.currentIssue.threadsByLocation[filename + ':' + (ln['old'] + 1 + i) + ':0'] ||
+            JJP.currentIssue.threadsByLocation[filename + ':' + (ln['new'] + 1 + i) + ':1']) {
+          for (var j = i - JJP.context; j <= i + JJP.context; j++) isVisible[j] = true;
+        }
       }
 
-      var expander = null;
+      var hidden = null;
       for (var i = 0; i < oldLines.length; i++) {
         ln['old']++;
         ln['new']++;
         if (isVisible[i]) {
           $table.append(equalLine([ln['old'], ln['new'], oldLines[i]]));
-        } else if (!expander) {
-          $table.append(expander = el('tr.expander', { data: { hiddenRows: hidden } },
-            el('td', { colspan: 4 },
-              t('{num} matching lines \u2014 ').replace('{num}', hidden.length),
-              JJP.fakelink().text(t('Expand all')).click(expanderClick))));
+          hidden = null;
+        } else {
+          if (!hidden) hidden = [];
+          hidden.push([ln['old'], ln['new'], oldLines[i]]);
+          if (isVisible[i+1] || i+1 == oldLines.length) {
+            if (hidden.length == 1) {
+              $table.append(equalLine([ln['old'], ln['new'], oldLines[i]]));
+            } else {
+              $table.append(el('tr.expander', { data: { hiddenRows: hidden } },
+                el('td', { colspan: 4 },
+                  t('{num} matching lines \u2014 ').replace('{num}', hidden.length),
+                  JJP.fakelink().text(t('Expand all')).click(expanderClick))));
+            }
+          }
         }
       }
     } else {
