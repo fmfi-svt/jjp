@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import subprocess as SP
+import urllib2
+import json
+
+
+def config_get(key):
+    '''Runs git config --get and returns the result, or None if it fails.'''
+    try:
+        return SP.check_output(['git', 'config', '--get', key]).strip()
+    except SP.CalledProcessError as exc:
+        if exc.returncode != 1: raise
+        return None
+
+
+def main():
+    '''The main function of the command line JJP utility.'''
+    jjp_server = os.getenv('JJP_SERVER')
+    if not jjp_server:
+        raise ValueError("You must export JJP_SERVER='the URL to connect to'")
+
+    topic_branch = SP.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip()
+    topic_remote = config_get('branch.{}.remote'.format(topic_branch)) or 'origin'
+    topic_url = config_get('remote.{}.url'.format(topic_remote)) or topic_remote
+
+    upstream_branch = config_get('branch.{}.merge'.format(topic_branch)) or 'master'
+    upstream_remote = config_get('branch.{}.remote'.format(upstream_branch)) or 'origin'
+    upstream_url = config_get('remote.{}.url'.format(upstream_remote)) or upstream_remote
+
+    if (topic_branch, topic_url) == (upstream_branch, upstream_url):
+        raise ValueError("You are already on the upstream branch. Checkout the topic branch first.")
+
+    print
+    print "Creating the following issue:"
+    print
+    print "Upstream branch:  {}".format(upstream_branch)
+    print "Upstream remote:  {} ({})".format(upstream_remote, upstream_url)
+    print "Topic branch:     {}".format(topic_branch)
+    print "Topic remote:     {} ({})".format(topic_remote, topic_url)
+    print
+    title = raw_input("Title: ")
+
+    json_payload = json.dumps(dict(
+        upstream_branch=upstream_branch, upstream_url=upstream_url,
+        topic_branch=topic_branch, topic_url=topic_url, title=title))
+
+    req = urllib2.Request(jjp_server.rstrip('/') + '/post/issue')
+    req.add_data(json_payload.encode('utf8'))
+    req.add_header('Content-Type', 'application/json; charset=UTF-8')
+
+    print ""
+    print "Sending request..."
+
+    try:
+        response = urllib2.urlopen(req)
+    except urllib2.HTTPError as exc:
+        print "Request unsuccessful!"
+        print ""
+        print exc.read()
+        sys.exit(1)
+    response_json = json.loads(response.read())
+
+    print "Success! Issue URL:"
+    print '{}/#{}'.format(jjp_server.rstrip('/'), response_json['saved'])
+    print
+
+
+if __name__ == '__main__':
+    main()

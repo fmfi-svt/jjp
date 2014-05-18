@@ -673,6 +673,13 @@ JJP.renderIndex = function () {
   }
   $('#jjp').append(
     el('h3', t('Create new issue')),
+    el('p',
+      el('strong', t('Recommended:')),
+      t(' Use the '),
+      el('a', { href: 'static/jjp', download: 'jjp' }, t('JJP command line utility')),
+      t('.')));
+  $('#jjp').append(
+    el('h3', t('Create new issue \u2013 manual method')),
     !JJP.username ? el('p', t('Log in to create a new issue.')) :
     el('form', { submit: createIssue },
       el('table.metadata',
