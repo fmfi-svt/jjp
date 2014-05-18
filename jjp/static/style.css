@@ -113,7 +113,7 @@ pre, code {
   overflow-y: scroll;
 }
 
-.timeline {
+.modalinner {
   margin: 2em;
 }
 
@@ -306,11 +306,10 @@ pre, code {
   display: inline;
 }
 
-.thread .where {
+.difflist .thread .where {
   display: none;
 }
-.allthreads .thread .where {
-  display: block;
+.thread .where {
   margin-bottom: 0.5em;
 }
 
@@ -331,4 +330,11 @@ pre, code {
 .allthreads.noresolved .thread.resolved,
 .allthreads.nounresolved .thread.unresolved {
   display: none;
+}
+
+.replymodal .thread {
+  display: none;
+}
+.replymodal .thread.draft, .replymodal .thread.firstthread {
+  display: block;
 }

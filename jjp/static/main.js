@@ -59,7 +59,7 @@ JJP.fakelink = function () {
 JJP.modal = function (child) {
   var $modal = el('div',
     el('div.modalback', { click: function () { $modal.hide(); } }),
-    el('div.modalcontent', child));
+    el('div.modalcontent', el('div.modalinner', child)));
   $modal.hide();
   return $modal;
 }
@@ -100,7 +100,7 @@ JJP.reply = function () {
   }
 
   if (!data.comments.length) {
-    alert(t("Press the button after you write your comments."));
+    alert(t("You didn't write any comments."));
     return;
   }
 
@@ -130,10 +130,6 @@ JJP.renderIssue = function () {
   $jjp.empty().append($top = JJP.renderTop());
   $top.append(el('h2',
     el('a', { href: '#' + issue.id }, '#' + issue.id + ': ' + issue.title)));
-  if (JJP.username) {
-    $top.append(el('div.topbutton',
-      el('button', { click: JJP.reply }, t("Send Comments"))));
-  }
 
   var statuses = [t('Open'), t('Submitted'), t('Abandoned')];
   $jjp.append(el('table.metadata',
@@ -199,7 +195,6 @@ JJP.renderIssue = function () {
 
   rows[JJP.currentLeft].find('[name=left]').prop('checked', true);
   rows[JJP.currentRight].find('[name=right]').prop('checked', true);
-  console.log(rows[JJP.currentLeft]);
 
   $commits.on('change', 'input:radio', function () {
     var left = $commits.find('input[name=left]:checked').val();
@@ -250,12 +245,32 @@ JJP.renderIssue = function () {
   $jjp.append(el('p',
     el('button', { click: JJP.createGlobalThread }, t('New global thread'))));
 
+  if (JJP.username) {
+    function showReplyModal() {
+      $replymodal.show();
+      var mainThread = JJP.currentIssue.threads[0];
+      if (!mainThread) return;
+      if (!JJP.currentIssue.drafts[mainThread.localId]) {
+        JJP.updateDraft(mainThread, '', mainThread.resolved);
+      }
+      $replymodal.find('.thread-' + mainThread.localId).find('textarea').focus();
+    }
+    var $replymodal;
+    $jjp.append($replymodal = JJP.modal(el('div',
+      el('div.replymodal',
+        $.map(JJP.currentIssue.allThreads || [], JJP.renderThread)),
+      el('div', el('button', { click: JJP.reply }, t("Send Reply"))))));
+    $top.append(el('div.topbutton',
+      el('button', { click: showReplyModal }, t("Reply"))));
+    $replymodal.find('.thread').eq(0).addClass('firstthread');
+  }
+
   var $timeline;
   $jjp.append($timeline = JJP.modal(el('div.timeline',
     $.map(JJP.currentIssue.messages || [], JJP.renderTimelineMessage))));
   $top.append(el('div.topbutton',
     el('button', { click: function () { $timeline.show(); } },
-      t("Show Timeline"))));
+      t("Timeline"))));
 }
 
 
@@ -408,6 +423,7 @@ JJP.createGlobalThread = function () {
   var thread = { localId: JJP.makeDraftId(), resolved: false };
   JJP.currentIssue.drafts[thread.localId] = thread;
   JJP.updateDraft(thread, '', false);
+  JJP.renderThread(thread).appendTo('.replymodal');
   var $thread = JJP.renderThread(thread).appendTo('.allthreads');
   setTimeout(function () {
     window.scrollBy(0, 1000);
@@ -437,6 +453,7 @@ JJP.createInlineThread = function ($tr, side) {
   JJP.updateDraft(thread, '', false);
   var $thread = JJP.renderThread(thread).appendTo($tr.find('td').eq(side));
   setTimeout(function () { $thread.find('textarea').focus(); }, 1);
+  JJP.renderThread(thread).appendTo('.replymodal');
   JJP.renderThread(thread).appendTo('.allthreads');
 }
 
@@ -447,7 +464,6 @@ JJP.renderCommentRow = function (filename, leftLine, rightLine) {
   var rloc = filename + ":" + rightLine + ":1";
   var lthreads = JJP.currentIssue.threadsByLocation[lloc];
   var rthreads = JJP.currentIssue.threadsByLocation[rloc];
-  if (lthreads || rthreads) console.log(filename, leftLine, rightLine);
   var $left = $.map(lthreads || [], JJP.renderThread);
   var $right = $.map(rthreads || [], JJP.renderThread);
   // TODO: Find out if this is faster: if ($left.length || $right.length) {
